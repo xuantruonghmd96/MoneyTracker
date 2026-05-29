@@ -1,0 +1,53 @@
+@baseUrl = https://localhost:7100
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYTg4NzVlOC1jZWZmLTQxNTctOTBiMy01MDRlOGNiMGQ2NWUiLCJlbWFpbCI6InRlc3RAbG9jYWwuZGV2IiwibmFtZSI6IlRlc3QgVXNlciIsImp0aSI6ImM3NDAzZTQ2LWYxNjQtNDE4ZS04YTM3LTk5YWVjYjhlYjgwNCIsIm5iZiI6MTc3OTk2MDMyMSwiZXhwIjoxNzc5OTYxMjIxLCJpc3MiOiJNb25leVRyYWNrZXIiLCJhdWQiOiJNb25leVRyYWNrZXIuQ2xpZW50cyJ9.uTUuhjTSCs5oaOujsnFRtrQMKGaMjo63sWK7X4RGwsE
+
+@walletId = 7574f72d-5c42-45bd-b29d-052b720463d0
+
+### Register
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@local.dev",
+  "password": "Password123",
+  "displayName": "Test User"
+}
+
+### Login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@local.dev",
+  "password": "Password123"
+}
+
+### Tạo ví thường
+POST {{baseUrl}}/api/wallets
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Ví Da",
+  "type": "Regular",
+  "initialBalance": 500000
+}
+
+### Xoá ví
+DELETE {{baseUrl}}/api/wallets/{{walletId}}
+Authorization: Bearer {{accessToken}}
+
+### Tạo ví tín dụng
+POST {{baseUrl}}/api/wallets
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Visa TCB",
+  "type": "Credit",
+  "creditLimit": 50000000
+}
+
+### List ví
+GET {{baseUrl}}/api/wallets
+Authorization: Bearer {{accessToken}}

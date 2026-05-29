@@ -1,0 +1,21 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+*.swp
+
+# Rider
+.idea/
+
+# Logs
+*.log
+
+# Secrets
+appsettings.*.local.json
+*.env
+
+# Mac
+.DS_Store
