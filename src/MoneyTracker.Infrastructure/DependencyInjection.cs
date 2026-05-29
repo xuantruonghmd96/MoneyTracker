@@ -1,5 +1,6 @@
 using MoneyTracker.Infrastructure.Auth;
 using MoneyTracker.Infrastructure.Persistence;
+using MoneyTracker.Infrastructure.Persistence.Interceptors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,10 +14,14 @@ public static class DependencyInjection
         var connStr = config.GetConnectionString("Postgres")
             ?? throw new InvalidOperationException("Missing ConnectionStrings:Postgres");
 
-        services.AddDbContext<AppDbContext>(opts =>
+        // Interceptor phải đăng ký trước AddDbContext để resolve được
+        services.AddScoped<TransactionAuditInterceptor>();
+
+        services.AddDbContext<AppDbContext>((sp, opts) =>
         {
             opts.UseNpgsql(connStr, npg => npg.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
             opts.UseSnakeCaseNamingConvention();
+            opts.AddInterceptors(sp.GetRequiredService<TransactionAuditInterceptor>());
         });
 
         services.Configure<JwtOptions>(config.GetSection(JwtOptions.SectionName));

@@ -2,6 +2,7 @@ using MoneyTracker.Domain.Common;
 using MoneyTracker.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace MoneyTracker.Infrastructure.Persistence;
 
@@ -20,6 +21,12 @@ public class AppDbContext : DbContext
     public DbSet<HouseholdInvitation> HouseholdInvitations => Set<HouseholdInvitation>();
     public DbSet<HouseholdCategoryShare> HouseholdCategoryShares => Set<HouseholdCategoryShare>();
     public DbSet<HouseholdCategoryShareTarget> HouseholdCategoryShareTargets => Set<HouseholdCategoryShareTarget>();
+    public DbSet<Participant> Participants => Set<Participant>();
+    public DbSet<ParticipantLink> ParticipantLinks => Set<ParticipantLink>();
+    public DbSet<SyncBatch> SyncBatches => Set<SyncBatch>();
+    public DbSet<TransactionAudit> TransactionAudits => Set<TransactionAudit>();
+    public DbSet<HouseholdWalletShare> HouseholdWalletShares => Set<HouseholdWalletShare>();
+    public DbSet<HouseholdWalletShareTarget> HouseholdWalletShareTargets => Set<HouseholdWalletShareTarget>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

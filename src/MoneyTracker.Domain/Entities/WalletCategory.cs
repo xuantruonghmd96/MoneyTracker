@@ -9,7 +9,7 @@ namespace MoneyTracker.Domain.Entities;
 public class WalletCategory : ISyncEntity
 {
     public Guid Id { get; set; }
-    public Guid UserId { get; set; }
+    public Guid? UserId { get; set; }
     public Guid WalletId { get; set; }
     public Guid CategoryId { get; set; }
 

@@ -29,6 +29,8 @@ public record CategoryResponse(
     bool AppliesToAllWallets,
     string? Icon,
     string? Color,
+    bool IsSystem,
+    string? SystemKey,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 

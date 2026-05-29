@@ -24,7 +24,8 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
         b.HasOne(x => x.User)
             .WithMany(u => u.Transactions)
             .HasForeignKey(x => x.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired(true);
 
         b.HasOne(x => x.Wallet)
             .WithMany(w => w.Transactions)
@@ -35,6 +36,16 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
             .WithMany(c => c.Transactions)
             .HasForeignKey(x => x.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        b.HasOne(x => x.Participant)
+            .WithMany()
+            .HasForeignKey(x => x.ParticipantId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
+
+        b.HasIndex(x => new { x.ParticipantId, x.OccurredAt })
+            .HasFilter("participant_id IS NOT NULL")
+            .HasDatabaseName("ix_transactions_participant_id_occurred_at");
     }
 }
 

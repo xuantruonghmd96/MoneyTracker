@@ -11,7 +11,7 @@ public enum WalletType
 public class Wallet : ISyncEntity
 {
     public Guid Id { get; set; }
-    public Guid UserId { get; set; }
+    public Guid? UserId { get; set; }
     public string Name { get; set; } = string.Empty;
     public WalletType Type { get; set; }
 

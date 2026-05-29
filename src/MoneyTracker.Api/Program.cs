@@ -93,6 +93,7 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<ICurrentActorContext, CurrentActorContext>();
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
     .AllowAnyHeader()

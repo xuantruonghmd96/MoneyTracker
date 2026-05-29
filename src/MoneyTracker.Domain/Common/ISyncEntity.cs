@@ -8,7 +8,7 @@ namespace MoneyTracker.Domain.Common;
 public interface ISyncEntity
 {
     Guid Id { get; }
-    Guid UserId { get; }
+    Guid? UserId { get; }
     DateTimeOffset CreatedAt { get; set; }
     DateTimeOffset UpdatedAt { get; set; }
     DateTimeOffset? DeletedAt { get; set; }

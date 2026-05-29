@@ -40,6 +40,16 @@ public class AuthController : ControllerBase
             DisplayName = req.DisplayName.Trim()
         };
         _db.Users.Add(user);
+
+        // Tạo default participant "Ai đó" — dùng làm fallback cho debt transactions
+        _db.Participants.Add(new Participant
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            Name = "Ai đó",
+            IsDefault = true
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(await IssueTokensAsync(user));

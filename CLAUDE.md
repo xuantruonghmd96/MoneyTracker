@@ -51,11 +51,47 @@ Time window: `[Share.StartedAt, Share.EndedAt]` ∩ `[Member.JoinedAt, Member.Le
 - Model validation error: override qua `InvalidModelStateResponseFactory` trong Program.cs
 - Unhandled exception: `ExceptionHandlingMiddleware` trả `INTERNAL_ERROR`
 
+## System categories convention
+- `UserId IS NULL` = system category. Hiện có 4 Debt categories với `SystemKey`: `DEBT_LEND`, `DEBT_COLLECT`, `DEBT_BORROW`, `DEBT_REPAY`.
+- Hard-coded UUIDs: `11111111-1111-1111-1111-11111111100{1-4}` — KHÔNG thay đổi.
+- **Mọi query category** PHẢI dùng extension method trong `MoneyTracker.Infrastructure.Persistence.Extensions.CategoryQueryExtensions`:
+  - `ForUserIncludingSystem(userId)` — cho GET/list/report/sync pull
+  - `ForUserOnly(userId)` — cho PUT/DELETE
+  - KHÔNG bao giờ viết `WHERE UserId == ...` trực tiếp cho categories.
+- Nếu client cố PUT/DELETE system category → 403 `SYSTEM_CATEGORY_READ_ONLY`.
+
+## Default participant
+- Mỗi user có đúng 1 participant `IsDefault=true` với `Name="Ai đó"`, tạo tự động trong `AuthController.Register`.
+- Debt transactions (`CategoryType.Debt`) không có `ParticipantId` → server tự lookup participant IsDefault.
+- Nếu default participant không tìm thấy (corrupted data) → 500 `DEFAULT_PARTICIPANT_MISSING`.
+- KHÔNG có DELETE endpoint cho Participants.
+
+## Sync invariants
+- `batchId` idempotent: nếu đã có SyncBatch với Id này → trả lại cached `ResponseJson` ngay, không xử lý lại.
+- Atomic all-or-nothing: nếu BẤT KỲ item nào fail validation → ROLLBACK toàn batch, 400 `SYNC_BATCH_REJECTED`, KHÔNG lưu SyncBatch.
+- LWW (Last Write Wins): nếu `existing.UpdatedAt > item.UpdatedAt` → skip (status="skipped"), không apply.
+- Thứ tự apply: participants → wallets → walletCategories → categories → transactions.
+- Sync pull trả về system categories qua `ForUserIncludingSystem`.
+
+## Audit trail
+- Chỉ `Transaction` entity được audit, không phải Wallet hay Category.
+- `TransactionAudit` là append-only — không bao giờ xóa row.
+- Populated qua `TransactionAuditInterceptor` (SaveChangesInterceptor), detect "delete" bằng `OriginalValues["DeletedAt"] == null && entity.DeletedAt != null`.
+- `ActorDevice` từ HTTP header `X-Device-Id` (optional).
+
 ## What's done (Iteration 1)
 - Auth: register / login / refresh / logout
 - Wallets CRUD (Regular + Credit với CreditLimit, có check constraint DB)
 - Categories CRUD (tree với ParentId, flag AppliesToAllWallets)
 - Wallet-Category assignment endpoints
+
+## What's done (Iteration 2)
+- Transactions CRUD + daily history (flat list with date range filter)
+- Participants CRUD (no DELETE), default participant "Ai đó" tạo lúc register
+- System categories (Debt type, UserId=NULL): DEBT_LEND, DEBT_COLLECT, DEBT_BORROW, DEBT_REPAY
+- Sync push/pull (idempotent batchId, LWW, atomic batch)
+- Monthly/yearly/debt reports
+- TransactionAudit interceptor
 
 ## What's next (Iteration 2)
 - Transactions CRUD

@@ -4,6 +4,7 @@ using MoneyTracker.Api.Dtos.Categories;
 using MoneyTracker.Domain.Common;
 using MoneyTracker.Domain.Entities;
 using MoneyTracker.Infrastructure.Persistence;
+using MoneyTracker.Infrastructure.Persistence.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -28,7 +29,8 @@ public class CategoriesController : ControllerBase
     public async Task<ActionResult<List<CategoryResponse>>> List()
     {
         var list = await _db.Categories
-            .Where(c => c.UserId == _currentUser.Id && c.DeletedAt == null)
+            .ForUserIncludingSystem(_currentUser.Id)
+            .Where(c => c.DeletedAt == null)
             .OrderBy(c => c.Type).ThenBy(c => c.ParentId).ThenBy(c => c.Name)
             .ToListAsync();
         return Ok(list.Select(ToDto).ToList());
@@ -37,7 +39,9 @@ public class CategoriesController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<CategoryResponse>> Get(Guid id)
     {
-        var c = await _db.Categories.FirstOrDefaultAsync(x => x.Id == id && x.UserId == _currentUser.Id && x.DeletedAt == null);
+        var c = await _db.Categories
+            .ForUserIncludingSystem(_currentUser.Id)
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         return c == null ? NotFound(new ApiError(ErrorCodes.NotFound)) : Ok(ToDto(c));
     }
 
@@ -46,8 +50,10 @@ public class CategoriesController : ControllerBase
     {
         if (req.ParentId.HasValue)
         {
-            var parent = await _db.Categories.FirstOrDefaultAsync(p =>
-                p.Id == req.ParentId.Value && p.UserId == _currentUser.Id && p.DeletedAt == null);
+            // Parent có thể là system category hoặc user category
+            var parent = await _db.Categories
+                .ForUserIncludingSystem(_currentUser.Id)
+                .FirstOrDefaultAsync(p => p.Id == req.ParentId.Value && p.DeletedAt == null);
             if (parent == null) return BadRequest(new ApiError(ErrorCodes.ParentNotFound));
             if (parent.Type != req.Type)
                 return BadRequest(new ApiError(ErrorCodes.ParentTypeMismatch));
@@ -60,17 +66,17 @@ public class CategoriesController : ControllerBase
         var category = new Category
         {
             Id = id,
-            UserId = _currentUser.Id,
+            UserId = _currentUser.Id,   // user category: luôn set UserId
             Name = req.Name.Trim(),
             Type = req.Type,
             ParentId = req.ParentId,
             AppliesToAllWallets = req.AppliesToAllWallets,
             Icon = req.Icon,
             Color = req.Color
+            // SystemKey KHÔNG set từ client
         };
         _db.Categories.Add(category);
 
-        // Optional: assign to specific wallets right away
         if (!req.AppliesToAllWallets && req.AssignToWalletIds is { Count: > 0 })
         {
             var validWalletIds = await _db.Wallets
@@ -97,18 +103,27 @@ public class CategoriesController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<CategoryResponse>> Update(Guid id, [FromBody] UpdateCategoryRequest req)
     {
-        var c = await _db.Categories.FirstOrDefaultAsync(x => x.Id == id && x.UserId == _currentUser.Id && x.DeletedAt == null);
-        if (c == null) return NotFound(new ApiError(ErrorCodes.NotFound));
+        var c = await _db.Categories
+            .ForUserOnly(_currentUser.Id)
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
+        if (c == null)
+        {
+            // Có thể là system category → 403; hoặc không tồn tại → 404
+            var isSystem = await _db.Categories.AnyAsync(x => x.Id == id && x.UserId == null);
+            return isSystem
+                ? StatusCode(403, new ApiError(ErrorCodes.SystemCategoryReadOnly))
+                : NotFound(new ApiError(ErrorCodes.NotFound));
+        }
 
         if (req.ParentId.HasValue)
         {
             if (req.ParentId.Value == id)
                 return BadRequest(new ApiError(ErrorCodes.CannotBeOwnParent));
-            var parent = await _db.Categories.FirstOrDefaultAsync(p =>
-                p.Id == req.ParentId.Value && p.UserId == _currentUser.Id && p.DeletedAt == null);
+            var parent = await _db.Categories
+                .ForUserIncludingSystem(_currentUser.Id)
+                .FirstOrDefaultAsync(p => p.Id == req.ParentId.Value && p.DeletedAt == null);
             if (parent == null) return BadRequest(new ApiError(ErrorCodes.ParentNotFound));
             if (parent.Type != c.Type) return BadRequest(new ApiError(ErrorCodes.ParentTypeMismatch));
-            // TODO: cycle check khi cây sâu hơn 1 cấp
         }
 
         c.Name = req.Name.Trim();
@@ -125,9 +140,16 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> Delete(Guid id)
     {
         var c = await _db.Categories
+            .ForUserOnly(_currentUser.Id)
             .Include(x => x.Children)
-            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == _currentUser.Id && x.DeletedAt == null);
-        if (c == null) return NotFound(new ApiError(ErrorCodes.NotFound));
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
+        if (c == null)
+        {
+            var isSystem = await _db.Categories.AnyAsync(x => x.Id == id && x.UserId == null);
+            return isSystem
+                ? StatusCode(403, new ApiError(ErrorCodes.SystemCategoryReadOnly))
+                : NotFound(new ApiError(ErrorCodes.NotFound));
+        }
 
         if (c.Children.Any(ch => ch.DeletedAt == null))
             return BadRequest(new ApiError(ErrorCodes.HasChildren));
@@ -146,7 +168,9 @@ public class CategoriesController : ControllerBase
     [HttpGet("{id:guid}/wallets")]
     public async Task<ActionResult<List<Guid>>> GetAssignedWallets(Guid id)
     {
-        var category = await _db.Categories.FirstOrDefaultAsync(c => c.Id == id && c.UserId == _currentUser.Id && c.DeletedAt == null);
+        var category = await _db.Categories
+            .ForUserIncludingSystem(_currentUser.Id)
+            .FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
         if (category == null) return NotFound(new ApiError(ErrorCodes.NotFound));
 
         if (category.AppliesToAllWallets)
@@ -169,8 +193,16 @@ public class CategoriesController : ControllerBase
     [HttpPut("{id:guid}/wallets")]
     public async Task<IActionResult> SetAssignedWallets(Guid id, [FromBody] List<Guid> walletIds)
     {
-        var category = await _db.Categories.FirstOrDefaultAsync(c => c.Id == id && c.UserId == _currentUser.Id && c.DeletedAt == null);
-        if (category == null) return NotFound(new ApiError(ErrorCodes.NotFound));
+        var category = await _db.Categories
+            .ForUserOnly(_currentUser.Id)
+            .FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
+        if (category == null)
+        {
+            var isSystem = await _db.Categories.AnyAsync(x => x.Id == id && x.UserId == null);
+            return isSystem
+                ? StatusCode(403, new ApiError(ErrorCodes.SystemCategoryReadOnly))
+                : NotFound(new ApiError(ErrorCodes.NotFound));
+        }
 
         if (category.AppliesToAllWallets)
             return BadRequest(new ApiError(ErrorCodes.CategoryAppliesToAll));
@@ -182,12 +214,10 @@ public class CategoriesController : ControllerBase
         var desired = walletIds.Distinct().ToHashSet();
         var existing = currentAssignments.Select(wc => wc.WalletId).ToHashSet();
 
-        // Soft-delete những row không còn cần
         var now = DateTimeOffset.UtcNow;
         foreach (var wc in currentAssignments.Where(wc => !desired.Contains(wc.WalletId)))
             wc.DeletedAt = now;
 
-        // Validate và thêm mới
         var toAdd = desired.Except(existing).ToList();
         if (toAdd.Count > 0)
         {
@@ -213,5 +243,8 @@ public class CategoriesController : ControllerBase
 
     private static CategoryResponse ToDto(Category c) => new(
         c.Id, c.Name, c.Type, c.ParentId, c.AppliesToAllWallets,
-        c.Icon, c.Color, c.CreatedAt, c.UpdatedAt);
+        c.Icon, c.Color,
+        IsSystem: c.UserId == null,
+        SystemKey: c.SystemKey,
+        c.CreatedAt, c.UpdatedAt);
 }

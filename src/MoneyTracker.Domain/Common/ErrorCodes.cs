@@ -25,6 +25,13 @@ public static class ErrorCodes
     public const string NotFound = "NOT_FOUND";
     public const string Unauthorized = "UNAUTHORIZED";
 
+    // Transaction / Participant
+    public const string SystemCategoryReadOnly = "SYSTEM_CATEGORY_READ_ONLY";
+    public const string CategoryNotAssignedToWallet = "CATEGORY_NOT_ASSIGNED_TO_WALLET";
+    public const string ParticipantNameTaken = "PARTICIPANT_NAME_TAKEN";
+    public const string DefaultParticipantMissing = "DEFAULT_PARTICIPANT_MISSING";
+    public const string SyncBatchRejected = "SYNC_BATCH_REJECTED";
+
     // Validation field-level
     public const string Required = "REQUIRED";
     public const string InvalidEmail = "INVALID_EMAIL";

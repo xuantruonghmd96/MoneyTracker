@@ -5,18 +5,22 @@ namespace MoneyTracker.Domain.Entities;
 public enum CategoryType
 {
     Income = 0,
-    Expense = 1
+    Expense = 1,
+    Debt = 2
 }
 
 public class Category : ISyncEntity
 {
     public Guid Id { get; set; }
-    public Guid UserId { get; set; }
+    public Guid? UserId { get; set; }
     public string Name { get; set; } = string.Empty;
     public CategoryType Type { get; set; }
 
     /// <summary>Danh mục cha. Null = top-level.</summary>
     public Guid? ParentId { get; set; }
+
+    /// <summary>Chỉ set khi UserId IS NULL (system category). Ví dụ: "DEBT_LEND".</summary>
+    public string? SystemKey { get; set; }
 
     /// <summary>
     /// Nếu true, danh mục này tự động xuất hiện trong tất cả ví hiện tại và tương lai

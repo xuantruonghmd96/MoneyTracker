@@ -1,9 +1,44 @@
+### ============================================================
+### Money Tracker API — Test Cases
+### Chạy theo thứ tự từ trên xuống. Sau mỗi request có response,
+### paste ID/token vào variables bên dưới rồi tiếp tục.
+### ============================================================
+
 @baseUrl = http://localhost:5100
-@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYTg4NzVlOC1jZWZmLTQxNTctOTBiMy01MDRlOGNiMGQ2NWUiLCJlbWFpbCI6InRlc3RAbG9jYWwuZGV2IiwibmFtZSI6IlRlc3QgVXNlciIsImp0aSI6ImM3NDAzZTQ2LWYxNjQtNDE4ZS04YTM3LTk5YWVjYjhlYjgwNCIsIm5iZiI6MTc3OTk2MDMyMSwiZXhwIjoxNzc5OTYxMjIxLCJpc3MiOiJNb25leVRyYWNrZXIiLCJhdWQiOiJNb25leVRyYWNrZXIuQ2xpZW50cyJ9.uTUuhjTSCs5oaOujsnFRtrQMKGaMjo63sWK7X4RGwsE
 
+# Paste từ response Login
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYTg4NzVlOC1jZWZmLTQxNTctOTBiMy01MDRlOGNiMGQ2NWUiLCJlbWFpbCI6InRlc3RAbG9jYWwuZGV2IiwibmFtZSI6IlRlc3QgVXNlciIsImp0aSI6IjY0NTZmODFiLWM1NDgtNDVkNC04MGRhLWU4OTkyZTdlZjhjNiIsIm5iZiI6MTc4MDAzNjgzOCwiZXhwIjoxNzgwMDM3NzM4LCJpc3MiOiJNb25leVRyYWNrZXIiLCJhdWQiOiJNb25leVRyYWNrZXIuQ2xpZW50cyJ9.Bej1RUDLxN36c28hjxNMYIpnnNnd2P2erL67_r8P0Lc
+@refreshToken = wGWPRk19KCOEAGbmxYupk4sO_Vvt5IJDk43x8j0o0B5upV0cGsXNR9k3n-YPH1RY
+
+# Paste từ response tạo wallet
 @walletId = 7574f72d-5c42-45bd-b29d-052b720463d0
+@creditWalletId = PASTE_CREDIT_WALLET_ID_HERE
 
-### Register
+# Paste từ response tạo category
+@categoryId = PASTE_CATEGORY_ID_HERE
+@childCategoryId = PASTE_CHILD_CATEGORY_ID_HERE
+
+# Paste từ response tạo transaction
+@transactionId = PASTE_TRANSACTION_ID_HERE
+
+# Paste từ response tạo participant
+@participantId = PASTE_PARTICIPANT_ID_HERE
+
+# System category IDs (cố định — không thay đổi)
+@debtLendId = 11111111-1111-1111-1111-111111111001
+@debtCollectId = 11111111-1111-1111-1111-111111111002
+@debtBorrowId = 11111111-1111-1111-1111-111111111003
+@debtRepayId = 11111111-1111-1111-1111-111111111004
+
+# Sync batch ID (hardcoded để test idempotency)
+@syncBatchId = aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+
+
+### ============================================================
+### 1. AUTH
+### ============================================================
+
+### [Auth] Register — happy path → 200 AuthResponse
 POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
@@ -13,7 +48,33 @@ Content-Type: application/json
   "displayName": "Test User"
 }
 
-### Login
+###
+
+### [Auth] Register — email đã tồn tại → 409 {"error":"EMAIL_TAKEN"}
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@local.dev",
+  "password": "Password123",
+  "displayName": "Test User 2"
+}
+
+###
+
+### [Auth] Register — password quá ngắn → 400 VALIDATION_FAILED / TOO_SHORT
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "new@local.dev",
+  "password": "123",
+  "displayName": "Short"
+}
+
+###
+
+### [Auth] Login → paste accessToken và refreshToken vào variables
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
@@ -22,7 +83,51 @@ Content-Type: application/json
   "password": "Password123"
 }
 
-### Tạo ví thường
+###
+
+### [Auth] Login — sai mật khẩu → 401 {"error":"INVALID_CREDENTIALS"}
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@local.dev",
+  "password": "WrongPassword"
+}
+
+###
+
+### [Auth] Refresh token → paste accessToken mới
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+
+### [Auth] Logout → 204 No Content
+POST {{baseUrl}}/api/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+
+
+### ============================================================
+### 2. WALLETS
+### ============================================================
+
+### [Wallets] List → 200 array
+GET {{baseUrl}}/api/wallets
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Wallets] Tạo ví thường → 201, paste walletId
 POST {{baseUrl}}/api/wallets
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
@@ -30,14 +135,15 @@ Content-Type: application/json
 {
   "name": "Ví Da",
   "type": "Regular",
-  "initialBalance": 500000
+  "initialBalance": 500000,
+  "currency": "VND",
+  "icon": "wallet",
+  "color": "#4CAF50"
 }
 
-### Xoá ví
-DELETE {{baseUrl}}/api/wallets/{{walletId}}
-Authorization: Bearer {{accessToken}}
+###
 
-### Tạo ví tín dụng
+### [Wallets] Tạo ví tín dụng → 201, paste creditWalletId
 POST {{baseUrl}}/api/wallets
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
@@ -45,9 +151,533 @@ Content-Type: application/json
 {
   "name": "Visa TCB",
   "type": "Credit",
-  "creditLimit": 50000000
+  "creditLimit": 50000000,
+  "currency": "VND"
 }
 
-### List ví
-GET {{baseUrl}}/api/wallets
+###
+
+### [Wallets] Credit wallet thiếu creditLimit → 400 {"error":"INVALID_CREDIT_LIMIT"}
+POST {{baseUrl}}/api/wallets
 Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Thẻ Không Hạn Mức",
+  "type": "Credit"
+}
+
+###
+
+### [Wallets] GET by id → 200 WalletResponse
+GET {{baseUrl}}/api/wallets/{{walletId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Wallets] GET not found → 404 {"error":"NOT_FOUND"}
+GET {{baseUrl}}/api/wallets/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Wallets] Update wallet → 200 WalletResponse
+PUT {{baseUrl}}/api/wallets/{{walletId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Ví Da (cập nhật)",
+  "icon": "wallet",
+  "color": "#2196F3"
+}
+
+###
+
+### [Wallets] Xóa ví → 204 No Content
+DELETE {{baseUrl}}/api/wallets/{{walletId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+
+### ============================================================
+### 3. CATEGORIES
+### ============================================================
+
+### [Categories] List → bao gồm 4 system categories (isSystem=true)
+GET {{baseUrl}}/api/categories
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Categories] GET system category DEBT_LEND → isSystem=true, systemKey="DEBT_LEND"
+GET {{baseUrl}}/api/categories/{{debtLendId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Categories] Tạo category Expense (AppliesToAllWallets=true) → 201, paste categoryId
+POST {{baseUrl}}/api/categories
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Ăn uống",
+  "type": "Expense",
+  "appliesToAllWallets": true,
+  "icon": "food",
+  "color": "#FF5722"
+}
+
+###
+
+### [Categories] Tạo category Expense con → 201, paste childCategoryId
+POST {{baseUrl}}/api/categories
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Cà phê",
+  "type": "Expense",
+  "parentId": "{{categoryId}}",
+  "appliesToAllWallets": true
+}
+
+###
+
+### [Categories] Tạo category Income với assign wallet → 201
+POST {{baseUrl}}/api/categories
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Lương",
+  "type": "Income",
+  "appliesToAllWallets": false,
+  "assignToWalletIds": ["{{walletId}}"]
+}
+
+###
+
+### [Categories] Parent type mismatch → 400 {"error":"PARENT_TYPE_MISMATCH"}
+POST {{baseUrl}}/api/categories
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Tiền lương con",
+  "type": "Income",
+  "parentId": "{{categoryId}}"
+}
+
+###
+
+### [Categories] UPDATE user category → 200 CategoryResponse
+PUT {{baseUrl}}/api/categories/{{categoryId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Ăn uống (cập nhật)",
+  "appliesToAllWallets": true,
+  "icon": "restaurant",
+  "color": "#E91E63"
+}
+
+###
+
+### [Categories] UPDATE system category → 403 {"error":"SYSTEM_CATEGORY_READ_ONLY"}
+PUT {{baseUrl}}/api/categories/{{debtLendId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Hack tên",
+  "appliesToAllWallets": true
+}
+
+###
+
+### [Categories] GET wallets của system category (AppliesToAllWallets=true) → list all wallet IDs
+GET {{baseUrl}}/api/categories/{{debtLendId}}/wallets
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Categories] GET wallets của user category → list assigned wallet IDs
+GET {{baseUrl}}/api/categories/{{categoryId}}/wallets
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Categories] Tạo category chỉ assign ví cụ thể (dùng để test CATEGORY_NOT_ASSIGNED_TO_WALLET)
+POST {{baseUrl}}/api/categories
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Chi phí Visa",
+  "type": "Expense",
+  "appliesToAllWallets": false,
+  "assignToWalletIds": ["{{creditWalletId}}"]
+}
+
+###
+
+### [Categories] PUT wallets assignment → 204
+PUT {{baseUrl}}/api/categories/{{categoryId}}/wallets
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+["{{walletId}}"]
+
+###
+
+### [Categories] DELETE category có child → 400 {"error":"HAS_CHILDREN"}
+DELETE {{baseUrl}}/api/categories/{{categoryId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Categories] DELETE category con → 204 (xóa child trước)
+DELETE {{baseUrl}}/api/categories/{{childCategoryId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+
+### ============================================================
+### 4. TRANSACTIONS
+### ============================================================
+
+### [Transactions] POST Expense — AppliesToAllWallets=true, không cần participant → 201, paste transactionId
+POST {{baseUrl}}/api/transactions
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "amount": 85000,
+  "occurredAt": "2026-05-15T08:30:00Z",
+  "walletId": "{{walletId}}",
+  "categoryId": "{{categoryId}}",
+  "note": "Bún bò buổi sáng"
+}
+
+###
+
+### [Transactions] POST Debt LEND với participantId → 201 (participant trong response)
+POST {{baseUrl}}/api/transactions
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "amount": 500000,
+  "occurredAt": "2026-05-20T14:00:00Z",
+  "walletId": "{{walletId}}",
+  "categoryId": "{{debtLendId}}",
+  "participantId": "{{participantId}}",
+  "note": "Cho Anh Bảy mượn"
+}
+
+###
+
+### [Transactions] POST Debt LEND không participantId → 201, server auto-fill "Ai đó"
+POST {{baseUrl}}/api/transactions
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "amount": 200000,
+  "occurredAt": "2026-05-22T16:00:00Z",
+  "walletId": "{{walletId}}",
+  "categoryId": "{{debtLendId}}",
+  "note": "Cho ai đó mượn"
+}
+
+###
+
+### [Transactions] POST Income → 201
+POST {{baseUrl}}/api/transactions
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "amount": 15000000,
+  "occurredAt": "2026-05-01T09:00:00Z",
+  "walletId": "{{walletId}}",
+  "categoryId": "{{categoryId}}",
+  "note": "Lương tháng 5"
+}
+
+###
+
+### [Transactions] POST category chưa assign vào wallet → 400 {"error":"CATEGORY_NOT_ASSIGNED_TO_WALLET"}
+### (dùng category chỉ assign creditWalletId nhưng post với walletId thường)
+### Thay categoryId bên dưới bằng ID của "Chi phí Visa" category tạo ở trên
+POST {{baseUrl}}/api/transactions
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "amount": 100000,
+  "occurredAt": "2026-05-25T10:00:00Z",
+  "walletId": "{{walletId}}",
+  "categoryId": "PASTE_VISA_CATEGORY_ID_HERE",
+  "note": "Sẽ bị lỗi"
+}
+
+###
+
+### [Transactions] GET list — date range toàn năm → flat list
+GET {{baseUrl}}/api/transactions?from=2026-01-01T00:00:00Z&to=2026-12-31T23:59:59Z
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Transactions] GET list — filter theo walletId
+GET {{baseUrl}}/api/transactions?from=2026-01-01T00:00:00Z&to=2026-12-31T23:59:59Z&walletId={{walletId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Transactions] GET list — filter theo categoryId (debt)
+GET {{baseUrl}}/api/transactions?from=2026-01-01T00:00:00Z&to=2026-12-31T23:59:59Z&categoryId={{debtLendId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Transactions] GET list — filter theo participantId
+GET {{baseUrl}}/api/transactions?from=2026-01-01T00:00:00Z&to=2026-12-31T23:59:59Z&participantId={{participantId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Transactions] GET by id → 200 TransactionResponse
+GET {{baseUrl}}/api/transactions/{{transactionId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Transactions] PUT update → 200 TransactionResponse
+PUT {{baseUrl}}/api/transactions/{{transactionId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "amount": 90000,
+  "occurredAt": "2026-05-15T09:00:00Z",
+  "walletId": "{{walletId}}",
+  "categoryId": "{{categoryId}}",
+  "note": "Bún bò + nước"
+}
+
+###
+
+### [Transactions] DELETE soft → 204 No Content
+DELETE {{baseUrl}}/api/transactions/{{transactionId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Categories] DELETE category có transaction → 400 {"error":"HAS_TRANSACTIONS"}
+### (thử xóa category đang được dùng bởi các transactions chưa bị xóa)
+DELETE {{baseUrl}}/api/categories/{{categoryId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+
+### ============================================================
+### 5. PARTICIPANTS
+### ============================================================
+
+### [Participants] GET list → "Ai đó" (isDefault=true) đứng đầu
+GET {{baseUrl}}/api/participants
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Participants] POST tạo participant mới → 201, paste participantId
+POST {{baseUrl}}/api/participants
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Anh Bảy",
+  "note": "Bạn học cũ"
+}
+
+###
+
+### [Participants] POST trùng tên → 409 {"error":"PARTICIPANT_NAME_TAKEN"}
+POST {{baseUrl}}/api/participants
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Anh Bảy"
+}
+
+###
+
+### [Participants] GET by id → 200 ParticipantResponse
+GET {{baseUrl}}/api/participants/{{participantId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Participants] PUT update → 200 ParticipantResponse
+PUT {{baseUrl}}/api/participants/{{participantId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Anh Bảy (họ hàng)",
+  "note": "Cập nhật ghi chú"
+}
+
+###
+
+
+### ============================================================
+### 6. SYNC
+### ============================================================
+
+### [Sync] Pull — first sync (no since) → tất cả entities
+GET {{baseUrl}}/api/sync/pull
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Sync] Pull — incremental (since timestamp)
+GET {{baseUrl}}/api/sync/pull?since=2026-01-01T00:00:00Z
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Sync] Push — upsert wallet mới + transaction mới → applied
+POST {{baseUrl}}/api/sync/push
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "batchId": "{{syncBatchId}}",
+  "deviceId": "test-device-http",
+  "changes": {
+    "wallets": [
+      {
+        "id": "cccccccc-0000-0000-0000-000000000001",
+        "op": "upsert",
+        "updatedAt": "2026-05-29T00:00:00Z",
+        "data": {
+          "name": "Ví Sync Test",
+          "type": "Regular",
+          "initialBalance": 0,
+          "currency": "VND"
+        }
+      }
+    ],
+    "transactions": [
+      {
+        "id": "cccccccc-0000-0000-0000-000000000002",
+        "op": "upsert",
+        "updatedAt": "2026-05-29T00:00:00Z",
+        "data": {
+          "walletId": "{{walletId}}",
+          "categoryId": "{{categoryId}}",
+          "amount": 55000,
+          "occurredAt": "2026-05-29T07:00:00Z",
+          "note": "Pushed từ client"
+        }
+      }
+    ]
+  }
+}
+
+###
+
+### [Sync] Push — cùng batchId → 200 với response y hệt (không duplicate trong DB)
+POST {{baseUrl}}/api/sync/push
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "batchId": "{{syncBatchId}}",
+  "deviceId": "test-device-http",
+  "changes": {
+    "wallets": [
+      {
+        "id": "cccccccc-0000-0000-0000-000000000001",
+        "op": "upsert",
+        "updatedAt": "2026-05-29T00:00:00Z",
+        "data": {
+          "name": "Ví Sync Test",
+          "type": "Regular",
+          "initialBalance": 0,
+          "currency": "VND"
+        }
+      }
+    ],
+    "transactions": [
+      {
+        "id": "cccccccc-0000-0000-0000-000000000002",
+        "op": "upsert",
+        "updatedAt": "2026-05-29T00:00:00Z",
+        "data": {
+          "walletId": "{{walletId}}",
+          "categoryId": "{{categoryId}}",
+          "amount": 55000,
+          "occurredAt": "2026-05-29T07:00:00Z",
+          "note": "Pushed từ client"
+        }
+      }
+    ]
+  }
+}
+
+###
+
+### [Sync] Push — batch với validation error → 400 SYNC_BATCH_REJECTED (dùng batchId mới)
+POST {{baseUrl}}/api/sync/push
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "batchId": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+  "changes": {
+    "categories": [
+      {
+        "id": "{{debtLendId}}",
+        "op": "upsert",
+        "updatedAt": "2026-05-29T00:00:00Z",
+        "data": { "name": "Hack system" }
+      }
+    ]
+  }
+}
+
+###
+
+
+### ============================================================
+### 7. REPORTS
+### ============================================================
+
+### [Reports] Monthly tháng 5/2026 → totalIncome, totalExpense, byCategory, topExpenses
+GET {{baseUrl}}/api/reports/monthly?year=2026&month=5
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Reports] Yearly 2026 → 12 MonthlySummary
+GET {{baseUrl}}/api/reports/yearly?year=2026
+Authorization: Bearer {{accessToken}}
+
+###
+
+### [Reports] Debt report → theyOweMe + iOweThem (outstanding > 0)
+GET {{baseUrl}}/api/reports/debt
+Authorization: Bearer {{accessToken}}
+
+###
