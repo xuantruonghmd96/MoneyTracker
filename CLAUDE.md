@@ -105,6 +105,16 @@ Time window: `[Share.StartedAt, Share.EndedAt]` ∩ `[Member.JoinedAt, Member.Le
 - Category sharing rules (cả visibility + assignment)
 - Family report tổng hợp theo membership window
 
+## Service layer convention
+- Services tại `src/MoneyTracker.Api/Services/`, concrete class, no interface (thêm interface sau khi có nhu cầu mock thật sự)
+- Constructor inject `AppDbContext`, KHÔNG inject `ICurrentUser` hoặc `IHttpContextAccessor` — caller (controller) pass `userId` qua method parameter
+- Throw `DomainException` subtypes: `NotFoundException` → 404, `ConflictException` → 409, `ValidationException` → 400, `ForbiddenException` → 403; throw base `DomainException` cho 500 với specific error code (VD: `DEFAULT_PARTICIPANT_MISSING`)
+- KHÔNG trả `IActionResult` / `ActionResult<T>` — trả DTO hoặc throw domain exception
+- `ExceptionHandlingMiddleware` map `DomainException` → status + `ApiError(ex.ErrorCode, ex.Fields)`; non-DomainException → 500 `INTERNAL_ERROR`
+- Controller thin: inject `ICurrentUser` + service → parse request → call service → map result sang ActionResult. Không try/catch. Không DbContext trực tiếp.
+- KHÔNG repository layer — DbContext là Unit of Work
+- `WalletsController` ngoại lệ: CRUD đủ đơn giản, giữ DbContext trực tiếp, không có WalletService
+
 ## Workflow
 1. Sau khi đổi entity hoặc configuration: `dotnet ef migrations add <Name> --project src/MoneyTracker.Infrastructure --startup-project src/MoneyTracker.Api --output-dir Persistence/Migrations`
 2. Apply: `dotnet ef database update --project src/MoneyTracker.Infrastructure --startup-project src/MoneyTracker.Api`

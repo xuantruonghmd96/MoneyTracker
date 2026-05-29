@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MoneyTracker.Api.Common;
+using MoneyTracker.Api.Services.Exceptions;
 using MoneyTracker.Domain.Common;
 
 namespace MoneyTracker.Api.Middleware;
@@ -20,6 +21,20 @@ public class ExceptionHandlingMiddleware
         try
         {
             await _next(ctx);
+        }
+        catch (DomainException ex)
+        {
+            var status = ex switch
+            {
+                NotFoundException  => 404,
+                ConflictException  => 409,
+                ValidationException => 400,
+                ForbiddenException => 403,
+                _                  => 500
+            };
+            ctx.Response.StatusCode = status;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new ApiError(ex.ErrorCode, ex.Fields)));
         }
         catch (Exception ex)
         {

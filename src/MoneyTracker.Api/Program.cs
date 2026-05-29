@@ -68,6 +68,14 @@ builder.Services.AddSwaggerGen(c =>
 // Infrastructure: DbContext, JWT, password hasher
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Services
+builder.Services.AddScoped<MoneyTracker.Api.Services.AuthService>();
+builder.Services.AddScoped<MoneyTracker.Api.Services.CategoryService>();
+builder.Services.AddScoped<MoneyTracker.Api.Services.TransactionService>();
+builder.Services.AddScoped<MoneyTracker.Api.Services.SyncService>();
+builder.Services.AddScoped<MoneyTracker.Api.Services.ReportService>();
+builder.Services.AddScoped<MoneyTracker.Api.Services.ParticipantService>();
+
 // Auth
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Missing Jwt section in config.");
