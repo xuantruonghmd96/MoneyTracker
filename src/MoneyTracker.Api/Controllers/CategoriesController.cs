@@ -1,5 +1,7 @@
 using MoneyTracker.Api.Auth;
+using MoneyTracker.Api.Common;
 using MoneyTracker.Api.Dtos.Categories;
+using MoneyTracker.Domain.Common;
 using MoneyTracker.Domain.Entities;
 using MoneyTracker.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -36,7 +38,7 @@ public class CategoriesController : ControllerBase
     public async Task<ActionResult<CategoryResponse>> Get(Guid id)
     {
         var c = await _db.Categories.FirstOrDefaultAsync(x => x.Id == id && x.UserId == _currentUser.Id && x.DeletedAt == null);
-        return c == null ? NotFound() : Ok(ToDto(c));
+        return c == null ? NotFound(new ApiError(ErrorCodes.NotFound)) : Ok(ToDto(c));
     }
 
     [HttpPost]
@@ -46,14 +48,14 @@ public class CategoriesController : ControllerBase
         {
             var parent = await _db.Categories.FirstOrDefaultAsync(p =>
                 p.Id == req.ParentId.Value && p.UserId == _currentUser.Id && p.DeletedAt == null);
-            if (parent == null) return BadRequest(new { error = "PARENT_NOT_FOUND" });
+            if (parent == null) return BadRequest(new ApiError(ErrorCodes.ParentNotFound));
             if (parent.Type != req.Type)
-                return BadRequest(new { error = "PARENT_TYPE_MISMATCH", message = "Danh mục con phải cùng loại Income/Expense với cha." });
+                return BadRequest(new ApiError(ErrorCodes.ParentTypeMismatch));
         }
 
         var id = req.Id ?? Guid.NewGuid();
         if (await _db.Categories.AnyAsync(c => c.Id == id))
-            return Conflict(new { error = "ID_ALREADY_EXISTS" });
+            return Conflict(new ApiError(ErrorCodes.IdAlreadyExists));
 
         var category = new Category
         {
@@ -96,16 +98,16 @@ public class CategoriesController : ControllerBase
     public async Task<ActionResult<CategoryResponse>> Update(Guid id, [FromBody] UpdateCategoryRequest req)
     {
         var c = await _db.Categories.FirstOrDefaultAsync(x => x.Id == id && x.UserId == _currentUser.Id && x.DeletedAt == null);
-        if (c == null) return NotFound();
+        if (c == null) return NotFound(new ApiError(ErrorCodes.NotFound));
 
         if (req.ParentId.HasValue)
         {
             if (req.ParentId.Value == id)
-                return BadRequest(new { error = "CANNOT_BE_OWN_PARENT" });
+                return BadRequest(new ApiError(ErrorCodes.CannotBeOwnParent));
             var parent = await _db.Categories.FirstOrDefaultAsync(p =>
                 p.Id == req.ParentId.Value && p.UserId == _currentUser.Id && p.DeletedAt == null);
-            if (parent == null) return BadRequest(new { error = "PARENT_NOT_FOUND" });
-            if (parent.Type != c.Type) return BadRequest(new { error = "PARENT_TYPE_MISMATCH" });
+            if (parent == null) return BadRequest(new ApiError(ErrorCodes.ParentNotFound));
+            if (parent.Type != c.Type) return BadRequest(new ApiError(ErrorCodes.ParentTypeMismatch));
             // TODO: cycle check khi cây sâu hơn 1 cấp
         }
 
@@ -125,14 +127,14 @@ public class CategoriesController : ControllerBase
         var c = await _db.Categories
             .Include(x => x.Children)
             .FirstOrDefaultAsync(x => x.Id == id && x.UserId == _currentUser.Id && x.DeletedAt == null);
-        if (c == null) return NotFound();
+        if (c == null) return NotFound(new ApiError(ErrorCodes.NotFound));
 
         if (c.Children.Any(ch => ch.DeletedAt == null))
-            return BadRequest(new { error = "HAS_CHILDREN", message = "Vui lòng xóa các danh mục con trước." });
+            return BadRequest(new ApiError(ErrorCodes.HasChildren));
 
         var hasTx = await _db.Transactions.AnyAsync(t => t.CategoryId == id && t.DeletedAt == null);
         if (hasTx)
-            return BadRequest(new { error = "HAS_TRANSACTIONS", message = "Không thể xóa danh mục đang có giao dịch." });
+            return BadRequest(new ApiError(ErrorCodes.HasTransactions));
 
         c.DeletedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync();
@@ -145,7 +147,7 @@ public class CategoriesController : ControllerBase
     public async Task<ActionResult<List<Guid>>> GetAssignedWallets(Guid id)
     {
         var category = await _db.Categories.FirstOrDefaultAsync(c => c.Id == id && c.UserId == _currentUser.Id && c.DeletedAt == null);
-        if (category == null) return NotFound();
+        if (category == null) return NotFound(new ApiError(ErrorCodes.NotFound));
 
         if (category.AppliesToAllWallets)
         {
@@ -168,10 +170,10 @@ public class CategoriesController : ControllerBase
     public async Task<IActionResult> SetAssignedWallets(Guid id, [FromBody] List<Guid> walletIds)
     {
         var category = await _db.Categories.FirstOrDefaultAsync(c => c.Id == id && c.UserId == _currentUser.Id && c.DeletedAt == null);
-        if (category == null) return NotFound();
+        if (category == null) return NotFound(new ApiError(ErrorCodes.NotFound));
 
         if (category.AppliesToAllWallets)
-            return BadRequest(new { error = "CATEGORY_APPLIES_TO_ALL", message = "Danh mục này áp dụng cho tất cả ví, không cần assign cụ thể." });
+            return BadRequest(new ApiError(ErrorCodes.CategoryAppliesToAll));
 
         var currentAssignments = await _db.WalletCategories
             .Where(wc => wc.CategoryId == id && wc.UserId == _currentUser.Id && wc.DeletedAt == null)

@@ -1,5 +1,7 @@
 using MoneyTracker.Api.Auth;
+using MoneyTracker.Api.Common;
 using MoneyTracker.Api.Dtos.Wallets;
+using MoneyTracker.Domain.Common;
 using MoneyTracker.Domain.Entities;
 using MoneyTracker.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -37,18 +39,18 @@ public class WalletsController : ControllerBase
     public async Task<ActionResult<WalletResponse>> Get(Guid id)
     {
         var w = await _db.Wallets.FirstOrDefaultAsync(x => x.Id == id && x.UserId == _currentUser.Id && x.DeletedAt == null);
-        return w == null ? NotFound() : Ok(ToDto(w));
+        return w == null ? NotFound(new ApiError(ErrorCodes.NotFound)) : Ok(ToDto(w));
     }
 
     [HttpPost]
     public async Task<ActionResult<WalletResponse>> Create([FromBody] CreateWalletRequest req)
     {
         if (req.Type == WalletType.Credit && req.CreditLimit is null or <= 0)
-            return BadRequest(new { error = "INVALID_CREDIT_LIMIT", message = "Ví tín dụng phải có hạn mức > 0." });
+            return BadRequest(new ApiError(ErrorCodes.InvalidCreditLimit));
 
         var id = req.Id ?? Guid.NewGuid();
         if (await _db.Wallets.AnyAsync(w => w.Id == id))
-            return Conflict(new { error = "ID_ALREADY_EXISTS" });
+            return Conflict(new ApiError(ErrorCodes.IdAlreadyExists));
 
         var wallet = new Wallet
         {
@@ -71,13 +73,13 @@ public class WalletsController : ControllerBase
     public async Task<ActionResult<WalletResponse>> Update(Guid id, [FromBody] UpdateWalletRequest req)
     {
         var w = await _db.Wallets.FirstOrDefaultAsync(x => x.Id == id && x.UserId == _currentUser.Id && x.DeletedAt == null);
-        if (w == null) return NotFound();
+        if (w == null) return NotFound(new ApiError(ErrorCodes.NotFound));
 
         w.Name = req.Name.Trim();
         if (w.Type == WalletType.Credit)
         {
             if (req.CreditLimit is null or <= 0)
-                return BadRequest(new { error = "INVALID_CREDIT_LIMIT" });
+                return BadRequest(new ApiError(ErrorCodes.InvalidCreditLimit));
             w.CreditLimit = req.CreditLimit;
         }
         if (req.InitialBalance.HasValue) w.InitialBalance = req.InitialBalance.Value;
@@ -92,7 +94,7 @@ public class WalletsController : ControllerBase
     public async Task<IActionResult> Delete(Guid id)
     {
         var w = await _db.Wallets.FirstOrDefaultAsync(x => x.Id == id && x.UserId == _currentUser.Id && x.DeletedAt == null);
-        if (w == null) return NotFound();
+        if (w == null) return NotFound(new ApiError(ErrorCodes.NotFound));
 
         // Soft delete (tombstone cho sync). Để giữ giao dịch lịch sử, không cascade delete transactions.
         w.DeletedAt = DateTimeOffset.UtcNow;

@@ -1,4 +1,6 @@
 using System.Text.Json;
+using MoneyTracker.Api.Common;
+using MoneyTracker.Domain.Common;
 
 namespace MoneyTracker.Api.Middleware;
 
@@ -24,11 +26,7 @@ public class ExceptionHandlingMiddleware
             _logger.LogError(ex, "Unhandled exception");
             ctx.Response.StatusCode = 500;
             ctx.Response.ContentType = "application/json";
-            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
-            {
-                error = "INTERNAL_ERROR",
-                message = "Lỗi không xác định.",
-            }));
+            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new ApiError(ErrorCodes.InternalError)));
         }
     }
 }

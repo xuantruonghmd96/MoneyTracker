@@ -3,15 +3,15 @@ using System.ComponentModel.DataAnnotations;
 namespace MoneyTracker.Api.Dtos.Auth;
 
 public record RegisterRequest(
-    [Required, EmailAddress, MaxLength(256)] string Email,
-    [Required, MinLength(8), MaxLength(128)] string Password,
-    [Required, MaxLength(128)] string DisplayName);
+    [Required(ErrorMessage = "REQUIRED"), EmailAddress(ErrorMessage = "INVALID_EMAIL"), MaxLength(256, ErrorMessage = "TOO_LONG")] string Email,
+    [Required(ErrorMessage = "REQUIRED"), MinLength(8, ErrorMessage = "TOO_SHORT"), MaxLength(128, ErrorMessage = "TOO_LONG")] string Password,
+    [Required(ErrorMessage = "REQUIRED"), MaxLength(128, ErrorMessage = "TOO_LONG")] string DisplayName);
 
 public record LoginRequest(
-    [Required, EmailAddress] string Email,
-    [Required] string Password);
+    [Required(ErrorMessage = "REQUIRED"), EmailAddress(ErrorMessage = "INVALID_EMAIL")] string Email,
+    [Required(ErrorMessage = "REQUIRED")] string Password);
 
-public record RefreshRequest([Required] string RefreshToken);
+public record RefreshRequest([Required(ErrorMessage = "REQUIRED")] string RefreshToken);
 
 public record AuthResponse(
     string AccessToken,

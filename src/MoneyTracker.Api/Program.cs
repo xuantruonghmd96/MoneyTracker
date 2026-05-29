@@ -2,10 +2,13 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using System.Text.Json.Serialization;
 using MoneyTracker.Api.Auth;
+using MoneyTracker.Api.Common;
 using MoneyTracker.Api.Middleware;
+using MoneyTracker.Domain.Common;
 using MoneyTracker.Infrastructure;
 using MoneyTracker.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -21,6 +24,19 @@ builder.Services.AddControllers()
         opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
+
+builder.Services.Configure<ApiBehaviorOptions>(opts =>
+{
+    opts.InvalidModelStateResponseFactory = ctx =>
+    {
+        var fields = ctx.ModelState
+            .Where(kv => kv.Value!.Errors.Count > 0)
+            .ToDictionary(
+                kv => string.IsNullOrEmpty(kv.Key) ? "_" : char.ToLower(kv.Key[0]) + kv.Key[1..],
+                kv => kv.Value!.Errors[0].ErrorMessage);
+        return new BadRequestObjectResult(new ApiError(ErrorCodes.ValidationFailed, fields));
+    };
+});
 
 builder.Services.AddEndpointsApiExplorer();
 

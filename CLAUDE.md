@@ -43,6 +43,14 @@ Khi share một category trong household, theo confirm: **cả hai**:
 
 Time window: `[Share.StartedAt, Share.EndedAt]` ∩ `[Member.JoinedAt, Member.LeftAt]` của sharer.
 
+## Error Response Convention
+- Mọi error response dùng `ApiError` record: `{"error":"CODE"}` hoặc `{"error":"VALIDATION_FAILED","fields":{"field":"CODE"}}`
+- `ApiError` định nghĩa tại `src/MoneyTracker.Api/Common/ApiError.cs`
+- Error codes định nghĩa tại `src/MoneyTracker.Domain/Common/ErrorCodes.cs`
+- **KHÔNG BAO GIỜ** trả natural language text trong error — kể cả "details for dev"
+- Model validation error: override qua `InvalidModelStateResponseFactory` trong Program.cs
+- Unhandled exception: `ExceptionHandlingMiddleware` trả `INTERNAL_ERROR`
+
 ## What's done (Iteration 1)
 - Auth: register / login / refresh / logout
 - Wallets CRUD (Regular + Credit với CreditLimit, có check constraint DB)

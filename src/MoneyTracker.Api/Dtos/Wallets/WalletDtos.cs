@@ -5,20 +5,20 @@ namespace MoneyTracker.Api.Dtos.Wallets;
 
 public record CreateWalletRequest(
     Guid? Id,                                       // optional: client gen UUID cho offline-first
-    [Required, MaxLength(128)] string Name,
-    [Required] WalletType Type,
+    [Required(ErrorMessage = "REQUIRED"), MaxLength(128, ErrorMessage = "TOO_LONG")] string Name,
+    [Required(ErrorMessage = "REQUIRED")] WalletType Type,
     decimal? CreditLimit,                           // bắt buộc nếu Type = Credit
     decimal? InitialBalance,
-    [MaxLength(8)] string? Currency,
-    [MaxLength(64)] string? Icon,
-    [MaxLength(16)] string? Color);
+    [MaxLength(8, ErrorMessage = "TOO_LONG")] string? Currency,
+    [MaxLength(64, ErrorMessage = "TOO_LONG")] string? Icon,
+    [MaxLength(16, ErrorMessage = "TOO_LONG")] string? Color);
 
 public record UpdateWalletRequest(
-    [Required, MaxLength(128)] string Name,
+    [Required(ErrorMessage = "REQUIRED"), MaxLength(128, ErrorMessage = "TOO_LONG")] string Name,
     decimal? CreditLimit,
     decimal? InitialBalance,
-    [MaxLength(64)] string? Icon,
-    [MaxLength(16)] string? Color);
+    [MaxLength(64, ErrorMessage = "TOO_LONG")] string? Icon,
+    [MaxLength(16, ErrorMessage = "TOO_LONG")] string? Color);
 
 public record WalletResponse(
     Guid Id,

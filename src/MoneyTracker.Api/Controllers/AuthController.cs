@@ -1,4 +1,6 @@
+using MoneyTracker.Api.Common;
 using MoneyTracker.Api.Dtos.Auth;
+using MoneyTracker.Domain.Common;
 using MoneyTracker.Domain.Entities;
 using MoneyTracker.Infrastructure.Auth;
 using MoneyTracker.Infrastructure.Persistence;
@@ -28,7 +30,7 @@ public class AuthController : ControllerBase
         var email = req.Email.Trim().ToLowerInvariant();
 
         if (await _db.Users.AnyAsync(u => u.Email == email))
-            return Conflict(new { error = "EMAIL_TAKEN", message = "Email đã được sử dụng." });
+            return Conflict(new ApiError(ErrorCodes.EmailTaken));
 
         var user = new User
         {
@@ -49,7 +51,7 @@ public class AuthController : ControllerBase
         var email = req.Email.Trim().ToLowerInvariant();
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
         if (user == null || !_hasher.Verify(req.Password, user.PasswordHash))
-            return Unauthorized(new { error = "INVALID_CREDENTIALS", message = "Email hoặc mật khẩu không đúng." });
+            return Unauthorized(new ApiError(ErrorCodes.InvalidCredentials));
 
         return Ok(await IssueTokensAsync(user));
     }
@@ -63,7 +65,7 @@ public class AuthController : ControllerBase
             .FirstOrDefaultAsync(t => t.TokenHash == hash);
 
         if (token == null || !token.IsActive || token.User == null)
-            return Unauthorized(new { error = "INVALID_REFRESH_TOKEN" });
+            return Unauthorized(new ApiError(ErrorCodes.InvalidRefreshToken));
 
         // Rotate: revoke cũ, cấp mới
         token.RevokedAt = DateTimeOffset.UtcNow;
