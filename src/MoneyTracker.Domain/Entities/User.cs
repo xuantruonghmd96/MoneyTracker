@@ -1,6 +1,8 @@
+using MoneyTracker.Domain.Common;
+
 namespace MoneyTracker.Domain.Entities;
 
-public class User
+public class User : IAuditableEntity
 {
     public Guid Id { get; set; }
     public string Email { get; set; } = string.Empty;

@@ -1,3 +1,5 @@
+using MoneyTracker.Domain.Common;
+
 namespace MoneyTracker.Domain.Entities;
 
 /// <summary>
@@ -12,7 +14,7 @@ namespace MoneyTracker.Domain.Entities;
 /// Time window: [StartedAt, EndedAt ?? now] giao với [member.JoinedAt, member.LeftAt ?? now]
 /// của cả sharer và viewer khi compute report.
 /// </summary>
-public class HouseholdCategoryShare
+public class HouseholdCategoryShare : IAuditableEntity
 {
     public Guid Id { get; set; }
 

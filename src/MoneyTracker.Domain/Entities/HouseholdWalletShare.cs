@@ -1,10 +1,12 @@
+using MoneyTracker.Domain.Common;
+
 namespace MoneyTracker.Domain.Entities;
 
 /// <summary>
 /// Share rule cho wallet trong household (schema only - iter 2, endpoints iter 3).
 /// Pattern y hệt HouseholdCategoryShare.
 /// </summary>
-public class HouseholdWalletShare
+public class HouseholdWalletShare : IAuditableEntity
 {
     public Guid Id { get; set; }
     public Guid HouseholdMemberId { get; set; }

@@ -1,6 +1,8 @@
+using MoneyTracker.Domain.Common;
+
 namespace MoneyTracker.Domain.Entities;
 
-public class Household
+public class Household : IAuditableEntity
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;

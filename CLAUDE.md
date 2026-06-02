@@ -18,11 +18,14 @@ Backend cho app **Money Tracker** — quản lý thu-chi cá nhân + gia đình.
 ## Critical conventions (BẮT BUỘC tuân thủ khi thêm code)
 
 ### Sync model
-- Mọi entity user-data implement `ISyncEntity` (Id, UserId, CreatedAt, UpdatedAt, DeletedAt)
+- **Interface hierarchy** (tại `src/MoneyTracker.Domain/Common/`):
+  - `IAuditableEntity` — `Id`, `CreatedAt`, `UpdatedAt`. Dùng cho mọi entity cần auto-stamp timestamp, kể cả entity không thuộc sync (User, Household, HouseholdCategoryShare, HouseholdWalletShare).
+  - `ISyncEntity : IAuditableEntity` — thêm `UserId`, `DeletedAt`. Dùng cho mọi entity user-data tham gia offline-first sync (Wallet, Category, WalletCategory, Participant, Transaction).
+- Khi thêm entity mới: implement `ISyncEntity` nếu cần sync, `IAuditableEntity` nếu chỉ cần timestamp.
 - **Soft delete** dùng `DeletedAt` (tombstone cho client biết mà xóa local). Không bao giờ hard-delete user data.
 - **Sync cursor** = `UpdatedAt` (Postgres timestamptz microsecond precision)
 - **UUID** sinh client. Endpoint POST nhận optional `Id` từ client; nếu trùng → 409. Đây là điều kiện cần cho offline-first.
-- `AppDbContext.SaveChanges` tự động stamp `CreatedAt`/`UpdatedAt` qua reflection — không cần set tay.
+- `AppDbContext.SaveChanges` tự động stamp `CreatedAt`/`UpdatedAt` qua `ChangeTracker.Entries<IAuditableEntity>()` — không cần set tay. Entity không implement `IAuditableEntity` (VD: `RefreshToken`) phải tự set `CreatedAt`.
 
 ### Auth
 - Mọi controller (trừ `/api/auth/*`) require `[Authorize]`

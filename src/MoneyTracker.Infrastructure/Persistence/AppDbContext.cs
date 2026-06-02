@@ -46,36 +46,15 @@ public class AppDbContext : DbContext
         return base.SaveChangesAsync(cancellationToken);
     }
 
-    /// <summary>
-    /// Tự động set CreatedAt/UpdatedAt cho mọi entity. ISyncEntity là điều kiện đủ;
-    /// vài entity ngoài (User, Household, ...) cũng có 2 field này nhưng không qua interface
-    /// nên xử lý theo reflection nhẹ.
-    /// </summary>
     private void StampTimestamps()
     {
         var now = DateTimeOffset.UtcNow;
-        foreach (var entry in ChangeTracker.Entries())
+        foreach (var entry in ChangeTracker.Entries<IAuditableEntity>())
         {
-            if (entry.State != EntityState.Added && entry.State != EntityState.Modified)
-                continue;
-
-            var entity = entry.Entity;
-            var type = entity.GetType();
-
-            var createdAt = type.GetProperty("CreatedAt");
-            var updatedAt = type.GetProperty("UpdatedAt");
-
-            if (entry.State == EntityState.Added && createdAt != null && createdAt.CanWrite)
-            {
-                var current = (DateTimeOffset?)createdAt.GetValue(entity);
-                if (current == null || current == default(DateTimeOffset))
-                    createdAt.SetValue(entity, now);
-            }
-
-            if (updatedAt != null && updatedAt.CanWrite)
-            {
-                updatedAt.SetValue(entity, now);
-            }
+            if (entry.State == EntityState.Added && entry.Entity.CreatedAt == default)
+                entry.Entity.CreatedAt = now;
+            if (entry.State is EntityState.Added or EntityState.Modified)
+                entry.Entity.UpdatedAt = now;
         }
     }
 }
