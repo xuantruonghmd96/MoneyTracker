@@ -107,14 +107,8 @@ public class SyncService
         var transactions = await _db.Transactions
             .Where(t => t.UserId == userId && (since == null || t.UpdatedAt > since))
             .Select(t => new TransactionResponse(
-                t.Id, t.Amount, t.OccurredAt, t.WalletId, t.Note,
-                new CategoryRef(
-                    t.Category!.Id, t.Category.Name, t.Category.Type,
-                    t.Category.UserId == null, t.Category.SystemKey,
-                    t.Category.Icon, t.Category.Color),
-                t.Participant == null ? null : new ParticipantRef(
-                    t.Participant.Id, t.Participant.Name, t.Participant.IsDefault),
-                t.CreatedAt, t.UpdatedAt, t.DeletedAt))
+                t.Id, t.Amount, t.OccurredAt, t.CategoryId, t.WalletId, t.ParticipantId,
+                t.Note, t.CreatedAt, t.UpdatedAt, t.DeletedAt))
             .ToListAsync(ct);
 
         return new SyncPullResponse(wallets, categories, walletCategories, participants, transactions, serverNow);

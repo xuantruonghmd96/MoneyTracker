@@ -159,12 +159,6 @@ public class TransactionService
     }
 
     private static TransactionResponse ToDto(Transaction t) => new(
-        t.Id, t.Amount, t.OccurredAt, t.WalletId, t.Note,
-        new CategoryRef(
-            t.Category!.Id, t.Category.Name, t.Category.Type,
-            t.Category.UserId == null, t.Category.SystemKey,
-            t.Category.Icon, t.Category.Color),
-        t.Participant == null ? null : new ParticipantRef(
-            t.Participant.Id, t.Participant.Name, t.Participant.IsDefault),
-        t.CreatedAt, t.UpdatedAt, t.DeletedAt);
+        t.Id, t.Amount, t.OccurredAt, t.CategoryId, t.WalletId, t.ParticipantId,
+        t.Note, t.CreatedAt, t.UpdatedAt, t.DeletedAt);
 }

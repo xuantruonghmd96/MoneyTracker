@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using MoneyTracker.Domain.Entities;
 
 namespace MoneyTracker.Api.Dtos.Transactions;
 
@@ -20,28 +19,14 @@ public record UpdateTransactionRequest(
     Guid? ParticipantId,
     [MaxLength(2048, ErrorMessage = "TOO_LONG")] string? Note);
 
-public record CategoryRef(
-    Guid Id,
-    string Name,
-    CategoryType Type,
-    bool IsSystem,
-    string? SystemKey,
-    string? Icon,
-    string? Color);
-
-public record ParticipantRef(
-    Guid Id,
-    string Name,
-    bool IsDefault);
-
 public record TransactionResponse(
     Guid Id,
     decimal Amount,
     DateTimeOffset OccurredAt,
+    Guid CategoryId,
     Guid WalletId,
+    Guid? ParticipantId,
     string? Note,
-    CategoryRef Category,
-    ParticipantRef? Participant,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     DateTimeOffset? DeletedAt);
