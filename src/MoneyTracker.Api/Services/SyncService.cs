@@ -39,7 +39,6 @@ public class SyncService
             new List<SyncItemResult>(), new List<SyncItemResult>(),
             new List<SyncItemResult>());
 
-        await using var dbTx = await _db.Database.BeginTransactionAsync(ct);
         var errors = new List<string>();
 
         await ProcessParticipants(userId, req.Changes.Participants, results.Participants!, errors, ct);
@@ -49,12 +48,9 @@ public class SyncService
         await ProcessTransactions(userId, req.Changes.Transactions, results.Transactions!, errors, ct);
 
         if (errors.Count > 0)
-        {
-            await dbTx.RollbackAsync(ct);
             throw new ValidationException(ErrorCodes.SyncBatchRejected,
                 errors.Select((e, i) => (Key: i.ToString(), Value: e))
                       .ToDictionary(x => x.Key, x => x.Value));
-        }
 
         var serverNow = DateTimeOffset.UtcNow;
         var response = new SyncPushResponse(results, serverNow);
@@ -69,7 +65,6 @@ public class SyncService
         });
 
         await _db.SaveChangesAsync(ct);
-        await dbTx.CommitAsync(ct);
 
         return response;
     }

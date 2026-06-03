@@ -33,7 +33,7 @@ public class AuthService
             Id = Guid.NewGuid(),
             Email = email,
             PasswordHash = _hasher.Hash(req.Password),
-            DisplayName = req.DisplayName.Trim()
+            DisplayName = req.DisplayName.Trim(),
         };
         _db.Users.Add(user);
 
