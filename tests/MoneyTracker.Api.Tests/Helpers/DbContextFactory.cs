@@ -7,9 +7,11 @@ namespace MoneyTracker.Api.Tests.Helpers;
 
 public static class DbContextFactory
 {
-    public static AppDbContext Create() =>
+    public static AppDbContext Create() => CreateNamed(Guid.NewGuid().ToString());
+
+    public static AppDbContext CreateNamed(string name) =>
         new(new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseInMemoryDatabase(name)
             .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options);
 }

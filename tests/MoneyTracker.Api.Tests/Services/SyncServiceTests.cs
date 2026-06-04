@@ -48,6 +48,37 @@ public class SyncServiceTests : IDisposable
         second.ServerNow.Should().Be(first.ServerNow);
     }
 
+    // ===== Push — Concurrent idempotency =====
+
+    [Fact]
+    public async Task Push_ConcurrentSameBatchId_ExactlyOneSucceedsAndOneThrowsDbException()
+    {
+        var dbName = $"concurrent-{Guid.NewGuid()}";
+        await using var db1 = DbContextFactory.CreateNamed(dbName);
+        await using var db2 = DbContextFactory.CreateNamed(dbName);
+        var svc1 = new SyncService(db1);
+        var svc2 = new SyncService(db2);
+
+        var batchId = Guid.NewGuid();
+        var userId  = Guid.NewGuid();
+        var req     = MakeRequest(batchId);
+
+        var t1 = Task.Run(() => svc1.PushAsync(userId, req, default));
+        var t2 = Task.Run(() => svc2.PushAsync(userId, req, default));
+
+        Exception? caughtEx = null;
+        try { await Task.WhenAll(t1, t2); }
+        catch (Exception ex) { caughtEx = ex; }
+
+        caughtEx.Should().NotBeNull("one concurrent request must fail with a duplicate-key error");
+
+        await using var verify = DbContextFactory.CreateNamed(dbName);
+        verify.SyncBatches.Count().Should().Be(1);
+
+        var succeeded = new[] { t1, t2 }.Count(t => t.IsCompletedSuccessfully);
+        succeeded.Should().Be(1);
+    }
+
     // ===== Push — Apply =====
 
     [Fact]
