@@ -50,8 +50,11 @@ public class SyncServiceTests : IDisposable
 
     // ===== Push — Concurrent idempotency =====
 
+    // In-memory provider returns IsRelational()=false → advisory lock is skipped →
+    // the duplicate-key race still occurs. In production (PostgreSQL), the advisory
+    // lock with 5 s timeout prevents the race: both requests succeed.
     [Fact]
-    public async Task Push_ConcurrentSameBatchId_ExactlyOneSucceedsAndOneThrowsDbException()
+    public async Task Push_ConcurrentSameBatchId_InMemory_OneSucceedsOtherThrows()
     {
         var dbName = $"concurrent-{Guid.NewGuid()}";
         await using var db1 = DbContextFactory.CreateNamed(dbName);
@@ -77,6 +80,24 @@ public class SyncServiceTests : IDisposable
 
         var succeeded = new[] { t1, t2 }.Count(t => t.IsCompletedSuccessfully);
         succeeded.Should().Be(1);
+    }
+
+    // ===== Push — Lock timeout =====
+
+    private class LockTimeoutSyncService(AppDbContext db) : SyncService(db)
+    {
+        protected override Task AcquireDistributedLockAsync(Guid batchId, CancellationToken ct)
+            => Task.FromException(new ServiceBusyException());
+    }
+
+    [Fact]
+    public async Task Push_LockTimeout_ThrowsServiceBusyException()
+    {
+        var svc = new LockTimeoutSyncService(_db);
+        var act = () => svc.PushAsync(_userId, MakeRequest(Guid.NewGuid()), default);
+
+        await act.Should().ThrowAsync<ServiceBusyException>()
+            .WithMessage(ErrorCodes.SyncLockTimeout);
     }
 
     // ===== Push — Apply =====

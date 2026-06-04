@@ -31,6 +31,7 @@ public static class ErrorCodes
     public const string ParticipantNameTaken = "PARTICIPANT_NAME_TAKEN";
     public const string DefaultParticipantMissing = "DEFAULT_PARTICIPANT_MISSING";
     public const string SyncBatchRejected = "SYNC_BATCH_REJECTED";
+    public const string SyncLockTimeout = "SYNC_LOCK_TIMEOUT";
 
     // Validation field-level
     public const string Required = "REQUIRED";

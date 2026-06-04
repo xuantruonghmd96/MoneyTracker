@@ -18,7 +18,7 @@ Backend cho app **Money Tracker** — quản lý thu-chi cá nhân + gia đình.
 ## Service layer convention
 - Services tại `src/MoneyTracker.Api/Services/`, concrete class, no interface (thêm interface sau khi có nhu cầu mock thật sự)
 - Constructor inject `AppDbContext`, KHÔNG inject `ICurrentUser` hoặc `IHttpContextAccessor` — caller (controller) pass `userId` qua method parameter
-- Throw `DomainException` subtypes: `NotFoundException` → 404, `ConflictException` → 409, `ValidationException` → 400, `ForbiddenException` → 403; throw base `DomainException` cho 500 với specific error code (VD: `DEFAULT_PARTICIPANT_MISSING`)
+- Throw `DomainException` subtypes: `NotFoundException` → 404, `ConflictException` → 409, `ValidationException` → 400, `ForbiddenException` → 403, `ServiceBusyException` → 503; throw base `DomainException` cho 500 với specific error code (VD: `DEFAULT_PARTICIPANT_MISSING`)
 - KHÔNG trả `IActionResult` / `ActionResult<T>` — trả DTO hoặc throw domain exception
 - `ExceptionHandlingMiddleware` map `DomainException` → status + `ApiError(ex.ErrorCode, ex.Fields)`; non-DomainException → 500 `INTERNAL_ERROR`
 - Controller thin: inject `ICurrentUser` + service → parse request → call service → map result sang ActionResult. Không try/catch. Không DbContext trực tiếp.
@@ -47,6 +47,23 @@ Backend cho app **Money Tracker** — quản lý thu-chi cá nhân + gia đình.
 - **Sync cursor** = `UpdatedAt` (Postgres timestamptz microsecond precision)
 - **UUID** sinh client. Endpoint POST nhận optional `Id` từ client; nếu trùng → 409. Đây là điều kiện cần cho offline-first.
 - `AppDbContext.SaveChanges` tự động stamp `CreatedAt`/`UpdatedAt` qua `ChangeTracker.Entries<IAuditableEntity>()` — không cần set tay. 
+
+### Distributed synchronization convention
+Khi một operation cần exactly-once execution trên môi trường **multi-instance**:
+- Dùng **PostgreSQL advisory lock** (`pg_advisory_xact_lock`) — KHÔNG dùng `SemaphoreSlim` (chỉ works trong 1 process)
+- Luôn set timeout trước khi acquire để tránh chờ vô hạn:
+  ```sql
+  SET LOCAL lock_timeout = '5000';   -- transaction-scoped, tự reset khi commit/rollback
+  SELECT pg_advisory_xact_lock({key});
+  ```
+- Advisory lock **phải nằm trong explicit transaction** (`BeginTransactionAsync`) để auto-release khi commit/rollback
+- Lock key: derive `bigint` từ GUID bằng `BitConverter.ToInt64(id.ToByteArray(), 0)`
+- Dùng `ExecuteSqlAsync($"...")` (không phải `ExecuteSqlRawAsync`) để tránh SQL injection warning
+- Nếu timeout (`PostgresException` SqlState `55P03`) → throw `ServiceBusyException` → 503
+- Guard bằng `_db.Database.IsRelational()` để unit test (in-memory) không bị lỗi
+- Extension method `_db.Database.AcquireAdvisoryLockAsync(key, ct)` tại `src/MoneyTracker.Api/Common/DatabaseFacadeExtensions.cs` — dùng trực tiếp trong bất kỳ service nào
+- **BẮT BUỘC**: `AcquireAdvisoryLockAsync` phải được gọi bên trong `await using var tx = await _db.Database.BeginTransactionAsync(ct)` — `pg_advisory_xact_lock` là transaction-scoped, nếu không có transaction thì lock tự release ngay lập tức và không có tác dụng
+- Để unit test timeout path trong service: extract lock call vào `protected virtual` method, subclass trong test để inject `ServiceBusyException` trực tiếp
 
 ### Auth
 - Mọi controller (trừ `/api/auth/*`) require `[Authorize]`

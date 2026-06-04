@@ -10,6 +10,7 @@ using MoneyTracker.Domain.Entities;
 using MoneyTracker.Infrastructure.Persistence;
 using MoneyTracker.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
+using MoneyTracker.Api.Common;
 
 namespace MoneyTracker.Api.Services;
 
@@ -29,7 +30,18 @@ public class SyncService
 
     public async Task<SyncPushResponse> PushAsync(Guid userId, SyncPushRequest req, CancellationToken ct)
     {
+        // Fast path: already processed (common retry — no lock needed)
         var existing = await _db.SyncBatches
+            .FirstOrDefaultAsync(b => b.Id == req.BatchId && b.UserId == userId, ct);
+        if (existing != null)
+            return JsonSerializer.Deserialize<SyncPushResponse>(existing.ResponseJson, JsonOpts)!;
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+
+        await AcquireDistributedLockAsync(req.BatchId, ct);
+
+        // Re-check after acquiring lock: another instance may have committed this batch while we waited
+        existing = await _db.SyncBatches
             .FirstOrDefaultAsync(b => b.Id == req.BatchId && b.UserId == userId, ct);
         if (existing != null)
             return JsonSerializer.Deserialize<SyncPushResponse>(existing.ResponseJson, JsonOpts)!;
@@ -65,9 +77,13 @@ public class SyncService
         });
 
         await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
         return response;
     }
+
+    protected virtual Task AcquireDistributedLockAsync(Guid batchId, CancellationToken ct)
+        => _db.Database.AcquireAdvisoryLockAsync(batchId, ct);
 
     public async Task<SyncPullResponse> PullAsync(Guid userId, DateTimeOffset? since, CancellationToken ct)
     {

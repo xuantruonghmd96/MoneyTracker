@@ -33,3 +33,9 @@ public class ForbiddenException : DomainException
 {
     public ForbiddenException(string errorCode) : base(errorCode) { }
 }
+
+public class ServiceBusyException : DomainException
+{
+    public ServiceBusyException(string errorCode = MoneyTracker.Domain.Common.ErrorCodes.SyncLockTimeout)
+        : base(errorCode) { }
+}
