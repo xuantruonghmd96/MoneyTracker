@@ -272,6 +272,49 @@ describe('TransactionsComponent', () => {
     http.expectOne('/api/wallets').flush([]);
   });
 
+  it('keeps toolbar controls mutually exclusive and closes them on outside clicks', () => {
+    const fixture = TestBed.createComponent(TransactionsComponent);
+    fixture.detectChanges();
+
+    http.expectOne((request) => request.url === '/api/transactions').flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+
+    const component = fixture.componentInstance;
+    component.toggleWalletMenu();
+    expect(component.walletMenuOpen()).toBe(true);
+
+    component.toggleSearch();
+    expect(component.walletMenuOpen()).toBe(false);
+    expect(component.searchOpen()).toBe(true);
+
+    component.toggleMenu();
+    expect(component.searchOpen()).toBe(false);
+    expect(component.menuOpen()).toBe(true);
+
+    component.openPeriodTypes();
+    expect(component.menuOpen()).toBe(false);
+    expect(component.periodTypesOpen()).toBe(true);
+
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(component.walletMenuOpen()).toBe(false);
+    expect(component.searchOpen()).toBe(false);
+    expect(component.menuOpen()).toBe(false);
+    expect(component.periodTypesOpen()).toBe(false);
+
+    component.searchQuery.set('rent');
+    component.toggleSearch();
+    fixture.detectChanges();
+    fixture.nativeElement
+      .querySelector('.search-field')
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(component.searchOpen()).toBe(true);
+
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(component.searchOpen()).toBe(false);
+    expect(component.searchQuery()).toBe('rent');
+  });
+
   it('does not change periods for vertical gestures or gestures beginning on controls', () => {
     const fixture = TestBed.createComponent(TransactionsComponent);
     const component = fixture.componentInstance;

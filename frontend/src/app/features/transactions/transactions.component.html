@@ -9,7 +9,7 @@
               type="button"
               [attr.aria-expanded]="walletMenuOpen()"
               aria-haspopup="listbox"
-              (click)="walletMenuOpen.update((open) => !open)"
+              (click)="toggleWalletMenu()"
             >
               <span class="wallet-button-icon" aria-hidden="true">▰</span>
               <span>{{ selectedWalletName() }}</span>
@@ -51,7 +51,7 @@
               type="button"
               [attr.aria-label]="searchOpen() ? 'Close transaction search' : 'Search transactions'"
               [attr.aria-expanded]="searchOpen()"
-              (click)="searchOpen.update((open) => !open)"
+              (click)="toggleSearch()"
             >
               <span aria-hidden="true">⌕</span>
             </button>
@@ -61,7 +61,7 @@
                 type="button"
                 aria-label="Period options"
                 aria-haspopup="menu"
-                [attr.aria-expanded]="menuOpen()"
+                [attr.aria-expanded]="menuOpen() || periodTypesOpen()"
                 (click)="toggleMenu()"
               >
                 <span aria-hidden="true">⋮</span>

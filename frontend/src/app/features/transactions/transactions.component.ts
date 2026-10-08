@@ -234,6 +234,18 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
     this.walletMenuOpen.set(false);
   }
 
+  toggleWalletMenu(): void {
+    const shouldOpen = !this.walletMenuOpen();
+    this.closeToolbarControls();
+    this.walletMenuOpen.set(shouldOpen);
+  }
+
+  toggleSearch(): void {
+    const shouldOpen = !this.searchOpen();
+    this.closeToolbarControls();
+    this.searchOpen.set(shouldOpen);
+  }
+
   selectPeriod(date: Date, isFuture = false): void {
     if (isFuture) {
       this.selectFuture();
@@ -301,13 +313,26 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
   }
 
   toggleMenu(): void {
-    this.periodTypesOpen.set(false);
-    this.menuOpen.update((open) => !open);
+    const shouldOpen = !this.menuOpen() && !this.periodTypesOpen();
+    this.closeToolbarControls();
+    this.menuOpen.set(shouldOpen);
   }
 
   openPeriodTypes(): void {
     this.menuOpen.set(false);
     this.periodTypesOpen.set(true);
+  }
+
+  @HostListener('document:click', ['$event'])
+  closeToolbarControlsOnOutsideClick(event: MouseEvent): void {
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest('.toolbar-row, .search-field')
+    ) {
+      return;
+    }
+    this.closeToolbarControls();
   }
 
   isCurrentPeriod(date: Date): boolean {
@@ -417,6 +442,13 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
     this.selectedDate.set(getPeriodBounds(new Date(), this.periodType()).start);
     this.reload();
     this.scrollSelectedPeriodIntoView();
+  }
+
+  private closeToolbarControls(): void {
+    this.walletMenuOpen.set(false);
+    this.searchOpen.set(false);
+    this.menuOpen.set(false);
+    this.periodTypesOpen.set(false);
   }
 
   private getSelectedRange(): PeriodBoundsRequest {
