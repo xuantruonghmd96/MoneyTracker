@@ -45,6 +45,7 @@ interface PeriodOption {
 
 const PERIOD_TYPES: PeriodType[] = ['Day', 'Week', 'Month', 'Quarter', 'Year'];
 const PERIODS_BEFORE_SELECTED = 31;
+const PERIOD_LOAD_THRESHOLD = 100;
 const SWIPE_THRESHOLD = 55;
 const FUTURE_RANGE_END = new Date(Date.UTC(9999, 11, 31, 23, 59, 59, 999));
 
@@ -59,6 +60,8 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly periodRequests = new Subject<PeriodBoundsRequest>();
   private swipeStart: { x: number; y: number; pointerId: number } | null = null;
+  private readonly periodsBeforeSelected = signal(PERIODS_BEFORE_SELECTED);
+  private loadingEarlierPeriods = false;
   @ViewChild('periodStrip') private periodStrip?: ElementRef<HTMLElement>;
   readonly currentPeriodVisible = signal(false);
   readonly periodTypes = PERIOD_TYPES;
@@ -92,7 +95,7 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
     const earlierDates: Date[] = [];
     let previous = selectedStart;
 
-    for (let count = 0; count < PERIODS_BEFORE_SELECTED; count++) {
+    for (let count = 0; count < this.periodsBeforeSelected(); count++) {
       previous = movePeriod(previous, type, -1);
       earlierDates.push(previous);
     }
@@ -300,6 +303,36 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
     this.currentPeriodVisible.set(visible);
   }
 
+  onPeriodStripScroll(): void {
+    this.updateCurrentPeriodVisibility();
+
+    const strip = this.periodStrip?.nativeElement;
+    if (
+      !strip ||
+      this.loadingEarlierPeriods ||
+      strip.scrollLeft > PERIOD_LOAD_THRESHOLD
+    ) {
+      return;
+    }
+
+    this.loadingEarlierPeriods = true;
+    const previousScrollWidth = strip.scrollWidth;
+    this.periodsBeforeSelected.update((count) => count + PERIODS_BEFORE_SELECTED);
+
+    if (typeof requestAnimationFrame !== 'function') {
+      this.loadingEarlierPeriods = false;
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      strip.scrollLeft += strip.scrollWidth - previousScrollWidth;
+      this.updateCurrentPeriodVisibility();
+      requestAnimationFrame(() => {
+        this.loadingEarlierPeriods = false;
+      });
+    });
+  }
+
   @HostListener('window:resize')
   onWindowResize(): void {
     this.updateCurrentPeriodVisibility();
@@ -307,6 +340,8 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
 
   selectPeriodType(type: PeriodType): void {
     this.periodType.set(type);
+    this.periodsBeforeSelected.set(PERIODS_BEFORE_SELECTED);
+    this.loadingEarlierPeriods = false;
     this.periodTypesOpen.set(false);
     this.reload();
     this.scrollSelectedPeriodIntoView();

@@ -183,6 +183,47 @@ describe('TransactionsComponent', () => {
     expect(component.periods().at(-1)?.label).toBe('Future');
   });
 
+  it('loads older period batches at the left edge without shifting the visible content', () => {
+    const fixture = TestBed.createComponent(TransactionsComponent);
+    fixture.detectChanges();
+
+    http.expectOne((request) => request.url === '/api/transactions').flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+
+    const component = fixture.componentInstance;
+    const strip = fixture.nativeElement.querySelector('.period-strip') as HTMLElement;
+    Object.defineProperty(strip, 'scrollWidth', {
+      configurable: true,
+      get: () => component.periods().length * 100,
+    });
+
+    const scheduledFrames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      scheduledFrames.push(callback);
+      return scheduledFrames.length;
+    });
+
+    try {
+      strip.scrollLeft = 0;
+      component.onPeriodStripScroll();
+      component.onPeriodStripScroll();
+
+      expect(component.periods()).toHaveLength(64);
+      expect(scheduledFrames).toHaveLength(1);
+
+      scheduledFrames.shift()?.(0);
+      expect(strip.scrollLeft).toBe(3100);
+
+      scheduledFrames.shift()?.(0);
+      strip.scrollLeft = 0;
+      component.onPeriodStripScroll();
+      expect(component.periods()).toHaveLength(95);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('requests Future from the current period end through the end of the supported date range', () => {
     const fixture = TestBed.createComponent(TransactionsComponent);
     fixture.detectChanges();

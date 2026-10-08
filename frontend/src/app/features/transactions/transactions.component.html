@@ -127,7 +127,7 @@
             class="period-strip"
             aria-label="Choose period"
             tabindex="0"
-            (scroll)="updateCurrentPeriodVisibility()"
+            (scroll)="onPeriodStripScroll()"
           >
             @for (period of periods(); track period.key) {
               <button
