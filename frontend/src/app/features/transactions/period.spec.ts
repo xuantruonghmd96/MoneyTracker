@@ -1,4 +1,9 @@
-import { formatPeriodLabel, getPeriodBounds, movePeriod } from './period';
+import {
+  formatNavigationPeriodLabel,
+  formatPeriodLabel,
+  getPeriodBounds,
+  movePeriod,
+} from './period';
 
 describe('period utilities', () => {
   it('returns a one-day half-open range for a day period', () => {
@@ -35,6 +40,30 @@ describe('period utilities', () => {
 
     expect(start).toEqual(new Date(2026, 0, 1));
     expect(end).toEqual(new Date(2027, 0, 1));
+  });
+
+  it('uses relative labels for the current and immediately previous periods', () => {
+    const current = new Date(2026, 9, 8);
+    const previousDay = movePeriod(current, 'Day', -1);
+    const previousWeek = movePeriod(current, 'Week', -1);
+    const previousMonth = movePeriod(current, 'Month', -1);
+    const previousYear = movePeriod(current, 'Year', -1);
+
+    expect(formatNavigationPeriodLabel(previousDay, 'Day', current)).toBe('Yesterday');
+    expect(formatNavigationPeriodLabel(current, 'Day', current)).toBe('Today');
+    expect(formatNavigationPeriodLabel(previousWeek, 'Week', current)).toBe('Last week');
+    expect(formatNavigationPeriodLabel(current, 'Week', current)).toBe('This week');
+    expect(formatNavigationPeriodLabel(previousMonth, 'Month', current)).toBe('Last month');
+    expect(formatNavigationPeriodLabel(current, 'Month', current)).toBe('This month');
+    expect(formatNavigationPeriodLabel(previousYear, 'Year', current)).toBe('Last year');
+    expect(formatNavigationPeriodLabel(current, 'Year', current)).toBe('This year');
+  });
+
+  it('labels quarters with their Roman numeral and year', () => {
+    const current = new Date(2026, 9, 8);
+
+    expect(formatNavigationPeriodLabel(new Date(2026, 6, 1), 'Quarter', current)).toBe('III-2026');
+    expect(formatNavigationPeriodLabel(current, 'Quarter', current)).toBe('IV-2026');
   });
 
   it('moves to the adjacent period without skipping a day', () => {

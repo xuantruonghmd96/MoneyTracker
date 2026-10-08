@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { Category, Transaction, Wallet } from '../../core/api.models';
 import { TransactionsComponent } from './transactions.component';
+import { getPeriodBounds } from './period';
 
 describe('TransactionsComponent', () => {
   let http: HttpTestingController;
@@ -80,15 +81,24 @@ describe('TransactionsComponent', () => {
     ];
 
     const transactionRequest = http.expectOne((request) => request.url === '/api/transactions');
-    expect(transactionRequest.request.params.has('from')).toBe(true);
-    expect(transactionRequest.request.params.has('to')).toBe(true);
+    const initialBounds = getPeriodBounds(new Date(), 'Month');
+    expect(transactionRequest.request.params.get('from')).toBe(initialBounds.start.toISOString());
+    expect(transactionRequest.request.params.get('to')).toBe(
+      new Date(initialBounds.end.getTime() - 1).toISOString(),
+    );
     transactionRequest.flush(transactions);
     http.expectOne('/api/categories').flush(categories);
     http.expectOne('/api/wallets').flush(wallets);
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelectorAll('.transaction-row').length).toBe(3);
-    expect(fixture.nativeElement.querySelectorAll('.period-strip button').length).toBe(3);
+    expect(fixture.nativeElement.querySelectorAll('.period-strip button').length).toBe(33);
+    expect(fixture.nativeElement.querySelector('.period-strip button.selected span').textContent).toBe(
+      'This month',
+    );
+    expect(fixture.nativeElement.querySelector('.period-strip button:last-child span').textContent).toBe(
+      'Future',
+    );
     expect(fixture.nativeElement.querySelector('.summary-amount .income-value').textContent).toContain('1,200');
     expect(fixture.nativeElement.querySelector('.summary-amount .expense-value').textContent).toContain('370');
 
@@ -136,13 +146,69 @@ describe('TransactionsComponent', () => {
       pointerId: 1,
     });
 
-    expect(component.selectedDate().getTime()).toBeGreaterThan(selectedDate.getTime());
+    expect(component.selectedDate()).toEqual(selectedDate);
+    expect(component.futureSelected()).toBe(true);
     expect(reload).toHaveBeenCalledOnce();
     reload.mockRestore();
     const swipeRequest = http.expectOne((request) => request.url === '/api/transactions');
     swipeRequest.flush([]);
     http.expectOne('/api/categories').flush([]);
     http.expectOne('/api/wallets').flush([]);
+  });
+
+  it('keeps 31 periods before a historical selection and requests its exact bounds', () => {
+    const fixture = TestBed.createComponent(TransactionsComponent);
+    fixture.detectChanges();
+
+    http.expectOne((request) => request.url === '/api/transactions').flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+
+    const component = fixture.componentInstance;
+    const previous = component.periods()[30];
+    const previousBounds = getPeriodBounds(previous.date, component.periodType());
+    component.selectPeriod(previous.date);
+
+    const previousRequest = http.expectOne((request) => request.url === '/api/transactions');
+    expect(previousRequest.request.params.get('from')).toBe(previousBounds.start.toISOString());
+    expect(previousRequest.request.params.get('to')).toBe(
+      new Date(previousBounds.end.getTime() - 1).toISOString(),
+    );
+    previousRequest.flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+
+    expect(component.periods()).toHaveLength(34);
+    expect(component.periods().slice(0, 31).every((period) => !period.selected)).toBe(true);
+    expect(component.periods().at(-1)?.label).toBe('Future');
+  });
+
+  it('requests Future from the current period end through the end of the supported date range', () => {
+    const fixture = TestBed.createComponent(TransactionsComponent);
+    fixture.detectChanges();
+
+    http.expectOne((request) => request.url === '/api/transactions').flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+
+    const component = fixture.componentInstance;
+    component.selectFuture();
+
+    const currentBounds = getPeriodBounds(new Date(), 'Month');
+    const futureRequest = http.expectOne((request) => request.url === '/api/transactions');
+    expect(futureRequest.request.params.get('from')).toBe(currentBounds.end.toISOString());
+    expect(futureRequest.request.params.get('to')).toBe(
+      new Date(Date.UTC(9999, 11, 31, 23, 59, 59, 999)).toISOString(),
+    );
+    futureRequest.flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+
+    fixture.detectChanges();
+    expect(component.periodTitle()).toBe('Future');
+    expect(fixture.nativeElement.querySelector('.period-strip button.selected span').textContent).toBe(
+      'Future',
+    );
   });
 
   it('does not change periods for vertical gestures or gestures beginning on controls', () => {

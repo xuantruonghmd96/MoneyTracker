@@ -1,5 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  DestroyRef,
+  ElementRef,
+  OnInit,
+  ViewChild,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of, Subject, switchMap, tap } from 'rxjs';
@@ -9,6 +19,7 @@ import {
   PeriodDirection,
   PeriodType,
   formatPeriodLabel,
+  formatNavigationPeriodLabel,
   getPeriodBounds,
   movePeriod,
 } from './period';
@@ -24,13 +35,17 @@ interface TransactionDay {
 
 interface PeriodOption {
   date: Date;
+  key: string;
   label: string;
   accessibleLabel: string;
   selected: boolean;
+  isFuture: boolean;
 }
 
 const PERIOD_TYPES: PeriodType[] = ['Day', 'Week', 'Month', 'Quarter', 'Year'];
+const PERIODS_BEFORE_SELECTED = 31;
 const SWIPE_THRESHOLD = 55;
+const FUTURE_RANGE_END = new Date(Date.UTC(9999, 11, 31, 23, 59, 59, 999));
 
 @Component({
   selector: 'app-transactions',
@@ -38,13 +53,15 @@ const SWIPE_THRESHOLD = 55;
   templateUrl: './transactions.component.html',
   styleUrl: './transactions.scss',
 })
-export class TransactionsComponent implements OnInit {
+export class TransactionsComponent implements OnInit, AfterViewInit {
   private readonly api = inject(MoneyApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly periodRequests = new Subject<PeriodBoundsRequest>();
   private swipeStart: { x: number; y: number; pointerId: number } | null = null;
+  @ViewChild('periodStrip') private periodStrip?: ElementRef<HTMLElement>;
   readonly periodTypes = PERIOD_TYPES;
   readonly selectedDate = signal(new Date());
+  readonly futureSelected = signal(false);
   readonly periodType = signal<PeriodType>('Month');
   readonly selectedWalletId = signal<string | null>(null);
   readonly walletMenuOpen = signal(false);
@@ -59,19 +76,56 @@ export class TransactionsComponent implements OnInit {
   readonly errorMessage = signal('');
 
   readonly periodTitle = computed(() =>
-    formatPeriodLabel(this.selectedDate(), this.periodType()),
+    this.futureSelected()
+      ? 'Future'
+      : formatNavigationPeriodLabel(this.selectedDate(), this.periodType(), new Date()),
   );
   readonly periods = computed<PeriodOption[]>(() => {
     const selected = this.selectedDate();
     const type = this.periodType();
-    const previous = movePeriod(selected, type, -1);
-    const next = movePeriod(selected, type, 1);
-    return [previous, selected, next].map((date, index) => ({
-      date,
-      label: formatPeriodLabel(date, type, true),
-      accessibleLabel: `${index === 0 ? 'Previous' : index === 2 ? 'Next' : 'Selected'} ${type.toLowerCase()}: ${formatPeriodLabel(date, type)}`,
-      selected: index === 1,
-    }));
+    const referenceDate = new Date();
+    const currentStart = getPeriodBounds(referenceDate, type).start;
+    const selectedStart = getPeriodBounds(selected, type).start;
+    const dates: Date[] = [];
+    const earlierDates: Date[] = [];
+    let previous = selectedStart;
+
+    for (let count = 0; count < PERIODS_BEFORE_SELECTED; count++) {
+      previous = movePeriod(previous, type, -1);
+      earlierDates.push(previous);
+    }
+    dates.push(...earlierDates.reverse());
+    dates.push(selectedStart);
+
+    let next = movePeriod(selectedStart, type, 1);
+    while (next.getTime() <= currentStart.getTime()) {
+      dates.push(next);
+      next = movePeriod(next, type, 1);
+    }
+
+    const options = dates.map((date) => {
+      const bounds = getPeriodBounds(date, type);
+      const label = formatNavigationPeriodLabel(date, type, referenceDate, true);
+      return {
+        date,
+        key: bounds.start.toISOString(),
+        label,
+        accessibleLabel: `${label}, ${formatPeriodLabel(date, type)}`,
+        selected: !this.futureSelected() && bounds.start.getTime() === selectedStart.getTime(),
+        isFuture: false,
+      };
+    });
+
+    const currentBounds = getPeriodBounds(referenceDate, type);
+    options.push({
+      date: currentBounds.end,
+      key: 'future',
+      label: 'Future',
+      accessibleLabel: 'Future period, all time after the current period',
+      selected: this.futureSelected(),
+      isFuture: true,
+    });
+    return options;
   });
   readonly selectedWalletName = computed(() => {
     const walletId = this.selectedWalletId();
@@ -131,9 +185,12 @@ export class TransactionsComponent implements OnInit {
           this.categories.set([]);
           this.wallets.set([]);
         }),
-        switchMap(({ start, end }) =>
+        switchMap(({ start, end, inclusiveEnd }) =>
           forkJoin({
-            transactions: this.api.getTransactions(start, end),
+            transactions: this.api.getTransactions(
+              start,
+              inclusiveEnd ? end : new Date(end.getTime() - 1),
+            ),
             categories: this.api.getCategories(),
             wallets: this.api.getWallets(),
           }).pipe(
@@ -147,13 +204,13 @@ export class TransactionsComponent implements OnInit {
       )
       .subscribe((data) => {
         if (data) {
-          const { start, end } = getPeriodBounds(this.selectedDate(), this.periodType());
+          const { start, end, inclusiveEnd } = this.getSelectedRange();
           const startTime = start.getTime();
           const endTime = end.getTime();
           this.transactions.set(
             data.transactions.filter((transaction) => {
               const occurredAt = new Date(transaction.occurredAt).getTime();
-              return occurredAt >= startTime && occurredAt < endTime;
+              return occurredAt >= startTime && (inclusiveEnd ? occurredAt <= endTime : occurredAt < endTime);
             }),
           );
           this.categories.set(data.categories);
@@ -165,23 +222,44 @@ export class TransactionsComponent implements OnInit {
     this.reload();
   }
 
+  ngAfterViewInit(): void {
+    this.scrollSelectedPeriodIntoView(false);
+  }
+
   selectWallet(walletId: string | null): void {
     this.selectedWalletId.set(walletId);
     this.walletMenuOpen.set(false);
   }
 
-  selectPeriod(date: Date): void {
+  selectPeriod(date: Date, isFuture = false): void {
+    if (isFuture) {
+      this.selectFuture();
+      return;
+    }
+
     const bounds = getPeriodBounds(date, this.periodType());
-    const currentBounds = getPeriodBounds(this.selectedDate(), this.periodType());
-    if (bounds.start.getTime() === currentBounds.start.getTime()) return;
+    const currentBounds = getPeriodBounds(new Date(), this.periodType());
+    if (bounds.start.getTime() > currentBounds.start.getTime()) return;
+    const selectedBounds = getPeriodBounds(this.selectedDate(), this.periodType());
+    if (bounds.start.getTime() === selectedBounds.start.getTime() && !this.futureSelected()) return;
+    this.futureSelected.set(false);
     this.selectedDate.set(date);
     this.reload();
+    this.scrollSelectedPeriodIntoView();
+  }
+
+  selectFuture(): void {
+    if (this.futureSelected()) return;
+    this.futureSelected.set(true);
+    this.reload();
+    this.scrollSelectedPeriodIntoView();
   }
 
   selectPeriodType(type: PeriodType): void {
     this.periodType.set(type);
     this.periodTypesOpen.set(false);
     this.reload();
+    this.scrollSelectedPeriodIntoView();
   }
 
   toggleMenu(): void {
@@ -236,8 +314,7 @@ export class TransactionsComponent implements OnInit {
   }
 
   reload(): void {
-    const { start, end } = getPeriodBounds(this.selectedDate(), this.periodType());
-    this.periodRequests.next({ start, end });
+    this.periodRequests.next(this.getSelectedRange());
   }
 
   categoryName(id: string): string {
@@ -283,7 +360,52 @@ export class TransactionsComponent implements OnInit {
   }
 
   private moveSelectedPeriod(direction: PeriodDirection): void {
+    if (this.futureSelected()) {
+      if (direction < 0) this.selectFuturePeriodPredecessor();
+      return;
+    }
+
+    const currentBounds = getPeriodBounds(new Date(), this.periodType());
+    const selectedBounds = getPeriodBounds(this.selectedDate(), this.periodType());
+    if (direction > 0 && selectedBounds.start.getTime() === currentBounds.start.getTime()) {
+      this.selectFuture();
+      return;
+    }
     this.selectPeriod(movePeriod(this.selectedDate(), this.periodType(), direction));
+  }
+
+  private selectFuturePeriodPredecessor(): void {
+    this.futureSelected.set(false);
+    this.selectedDate.set(getPeriodBounds(new Date(), this.periodType()).start);
+    this.reload();
+    this.scrollSelectedPeriodIntoView();
+  }
+
+  private getSelectedRange(): PeriodBoundsRequest {
+    if (this.futureSelected()) {
+      return {
+        start: getPeriodBounds(new Date(), this.periodType()).end,
+        end: FUTURE_RANGE_END,
+        inclusiveEnd: true,
+      };
+    }
+
+    const { start, end } = getPeriodBounds(this.selectedDate(), this.periodType());
+    return { start, end, inclusiveEnd: false };
+  }
+
+  private scrollSelectedPeriodIntoView(smooth = true): void {
+    if (typeof requestAnimationFrame !== 'function') return;
+    requestAnimationFrame(() => {
+      const selected = this.periodStrip?.nativeElement.querySelector<HTMLElement>(
+        '[aria-pressed="true"]',
+      );
+      selected?.scrollIntoView?.({
+        behavior: smooth ? 'smooth' : 'auto',
+        block: 'nearest',
+        inline: 'center',
+      });
+    });
   }
 
   private formatWalletMoney(amount: number, currency: string): string {
@@ -343,4 +465,5 @@ export class TransactionsComponent implements OnInit {
 interface PeriodBoundsRequest {
   start: Date;
   end: Date;
+  inclusiveEnd: boolean;
 }

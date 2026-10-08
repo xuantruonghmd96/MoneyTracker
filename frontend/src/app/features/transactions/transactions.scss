@@ -7,10 +7,8 @@
   min-width: 0;
   grid-template-columns: minmax(0, 1fr);
   gap: 17px;
-  touch-action: pan-y;
 }
 
-.page-heading,
 .activity-heading {
   display: flex;
   align-items: flex-end;
@@ -18,27 +16,13 @@
   gap: 14px;
 }
 
-.page-heading .eyebrow,
+.eyebrow,
 .activity-heading .eyebrow {
   margin: 0 0 7px;
   color: var(--subtle);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1.1px;
-}
-
-.page-heading h1 {
-  margin: 0;
-  color: var(--text);
-  font-size: clamp(22px, 2.4vw, 29px);
-  font-weight: 600;
-  letter-spacing: -1px;
-}
-
-.period-caption {
-  padding-bottom: 3px;
-  color: #a5b19f;
-  font-size: 11px;
 }
 
 .wallet-overview,
@@ -85,7 +69,6 @@
   min-width: 140px;
   justify-content: flex-start;
   padding: 0 10px;
-  font-size: 11px;
   font-weight: 600;
 }
 
@@ -146,7 +129,6 @@
   background: transparent;
   color: #cbd2c7;
   cursor: pointer;
-  font-size: 11px;
   text-align: left;
 }
 
@@ -167,21 +149,53 @@
   padding: 11px;
 }
 
-.period-menu label {
-  color: #bdc7b8;
-  font-size: 10px;
-  font-weight: 600;
+.overflow-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 5;
+  display: grid;
+  min-width: 190px;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid rgba(239, 244, 230, 0.12);
+  border-radius: 11px;
+  background: #202621;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
-.period-menu input {
-  min-height: 34px;
-  padding: 0 7px;
-  border: 1px solid rgba(239, 244, 230, 0.12);
+.overflow-menu > p {
+  margin: 3px 8px 5px;
+  color: #899487;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.overflow-menu > button {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 9px;
+  border: 0;
   border-radius: 7px;
-  background: #171b18;
-  color: #e8eee2;
-  color-scheme: dark;
-  font-size: 11px;
+  background: transparent;
+  color: #cbd2c7;
+  cursor: pointer;
+  text-align: left;
+}
+
+.overflow-menu > button:hover,
+.overflow-menu > button.selected-type {
+  background: rgba(166, 217, 154, 0.09);
+  color: #c5e2b9;
+}
+
+.menu-value {
+  color: #aeb9a8;
 }
 
 .search-field {
@@ -195,10 +209,6 @@
   border-radius: 8px;
   background: #131713;
   color: #929d8d;
-}
-
-.search-field > span {
-  font-size: 17px;
 }
 
 .search-field input {
@@ -221,7 +231,6 @@
   background: transparent;
   color: #aeb9a8;
   cursor: pointer;
-  font-size: 17px;
 }
 
 .balance-row {
@@ -234,7 +243,6 @@
 
 .balance-label {
   color: #929b90;
-  font-size: 10px;
 }
 
 .balance-label > span {
@@ -244,36 +252,62 @@
 
 .balance-row strong {
   color: #edf0e9;
-  font-size: clamp(19px, 2.4vw, 25px);
   font-weight: 600;
   letter-spacing: -0.5px;
 }
 
+.period-strip-wrap {
+  position: relative;
+  margin: 0 -17px;
+  border-top: 1px solid var(--border);
+}
+
 .period-strip {
   display: flex;
-  overflow: hidden;
-  justify-content: space-between;
-  gap: 4px;
-  margin: 0 -17px;
-  padding: 0 13px;
-  border-top: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 3px;
+  padding: 0 13px 5px;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  scrollbar-color: rgba(190, 208, 180, 0.28) transparent;
+  scrollbar-width: thin;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.period-strip::-webkit-scrollbar {
+  height: 4px;
+}
+
+.period-strip::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: rgba(190, 208, 180, 0.28);
 }
 
 .period-strip button {
   position: relative;
   display: grid;
-  min-width: 0;
+  min-width: 82px;
   min-height: 48px;
-  flex: 1 1 0;
+  flex: 0 0 auto;
   place-items: center;
+  padding: 0 10px;
   border: 0;
   border-bottom: 0;
   background: transparent;
   color: #929b90;
   cursor: pointer;
-  font-size: clamp(9px, 2.5vw, 11px);
   font-weight: 500;
   white-space: nowrap;
+  scroll-snap-align: center;
+}
+
+.period-strip button:focus-visible {
+  z-index: 1;
+  outline: 2px solid #a6d99a;
+  outline-offset: -3px;
+  border-radius: 7px;
 }
 
 .period-strip button:hover {
@@ -283,6 +317,16 @@
 .period-strip button.selected {
   color: #d3ebc8;
   font-weight: 700;
+}
+
+.period-strip button.future-period {
+  min-width: 76px;
+  margin-left: 5px;
+  color: #aeb9a8;
+}
+
+.period-strip button.future-period.selected {
+  color: #d3ebc8;
 }
 
 .selected-period-indicator {
@@ -313,13 +357,11 @@
 
 .period-summary {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px 19px;
-  padding: 16px 17px;
 }
 
 .summary-amount {
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 7px;
 }
 
@@ -328,7 +370,6 @@
   align-items: center;
   gap: 7px;
   color: #969f93;
-  font-size: 10px;
 }
 
 .summary-amount i {
@@ -346,29 +387,9 @@
 }
 
 .summary-amount strong {
-  font-size: 13px;
+  text-align: right;
+  padding-right: 30px;
   font-weight: 600;
-}
-
-.net-amount {
-  display: flex;
-  grid-column: 1 / -1;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-left: auto;
-  width: min(52%, 270px);
-  padding-top: 11px;
-  border-top: 1px solid var(--border);
-  color: #929b90;
-  font-size: 10px;
-}
-
-.net-amount strong {
-  color: #e9ede5;
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
 }
 
 .net-amount strong.negative {
@@ -384,28 +405,19 @@
 }
 
 .report-button {
+  justify-content: center;
   display: flex;
-  min-height: 39px;
-  grid-column: 1 / -1;
   align-items: center;
-  gap: 8px;
-  padding: 0 10px;
-  border: 1px solid rgba(176, 219, 151, 0.13);
+  border: 1px solid rgba(228, 237, 223, 0.13);
   border-radius: 8px;
   background: rgba(145, 190, 122, 0.08);
   color: #bce1a8;
-  font-size: 10px;
   font-weight: 600;
   text-decoration: none;
 }
 
 .report-button:hover {
   background: rgba(145, 190, 122, 0.15);
-}
-
-.report-arrow {
-  margin-left: auto;
-  font-size: 15px;
 }
 
 .activity-section {
@@ -424,11 +436,6 @@
   font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.3px;
-}
-
-.transaction-count {
-  color: #7f897d;
-  font-size: 10px;
 }
 
 .transaction-days {
@@ -685,19 +692,6 @@
     gap: 11px;
   }
 
-  .page-heading {
-    align-items: center;
-  }
-
-  .page-heading .eyebrow {
-    margin-bottom: 4px;
-    font-size: 8px;
-  }
-
-  .page-heading h1 {
-    font-size: 20px;
-  }
-
   .period-caption {
     display: none;
   }
@@ -726,17 +720,25 @@
   }
 
   .balance-row strong {
-    font-size: 21px;
+    font-size: 18px;
   }
 
   .period-strip {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .period-strip-wrap {
     margin: 0 -12px;
-    padding: 0 8px;
   }
 
   .period-strip button {
     min-height: 43px;
-    font-size: 9px;
+  }
+
+  .period-strip-hint {
+    right: 7px;
+    bottom: 7px;
   }
 
   .selected-period-indicator {
@@ -752,22 +754,12 @@
     padding: 14px 13px;
   }
 
-  .net-amount {
-    width: 56%;
-    padding-top: 9px;
-  }
-
-  .net-amount strong {
-    font-size: 13px;
-  }
-
   .summary-amount strong {
     font-size: 12px;
   }
 
   .report-button {
     min-height: 37px;
-    font-size: 9px;
   }
 
   .activity-heading {

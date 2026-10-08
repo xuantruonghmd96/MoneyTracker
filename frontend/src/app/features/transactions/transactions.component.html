@@ -59,7 +59,8 @@
               <button
                 class="icon-button"
                 type="button"
-                aria-label="Open menu"
+                aria-label="Period options"
+                aria-haspopup="menu"
                 [attr.aria-expanded]="menuOpen()"
                 (click)="toggleMenu()"
               >
@@ -120,25 +121,29 @@
           }
         </div>
 
-        <nav class="period-strip" aria-label="Choose period">
-          @for (period of periods(); track period.accessibleLabel) {
-            <button
-              type="button"
-              [class.selected]="period.selected"
-              [attr.aria-pressed]="period.selected"
-              [attr.aria-label]="period.accessibleLabel"
-              (click)="selectPeriod(period.date)"
-            >
-              <span>{{ period.label }}</span>
-              @if (period.selected) {
-                <span class="selected-period-indicator" aria-hidden="true"></span>
-              }
-              @if (isCurrentPeriod(period.date)) {
-                <span class="current-dot" aria-label="Current period"></span>
-              }
-            </button>
-          }
-        </nav>
+        <div class="period-strip-wrap">
+          <nav #periodStrip class="period-strip" aria-label="Choose period" tabindex="0">
+            @for (period of periods(); track period.key) {
+              <button
+                type="button"
+                [class.selected]="period.selected"
+                [class.future-period]="period.isFuture"
+                [attr.aria-pressed]="period.selected"
+                [attr.aria-label]="period.accessibleLabel"
+                [attr.aria-current]="!period.isFuture && isCurrentPeriod(period.date) ? 'date' : null"
+                (click)="selectPeriod(period.date, period.isFuture)"
+              >
+                <span>{{ period.label }}</span>
+                @if (period.selected) {
+                  <span class="selected-period-indicator" aria-hidden="true"></span>
+                }
+                @if (!period.isFuture && isCurrentPeriod(period.date)) {
+                  <span class="current-dot" aria-hidden="true"></span>
+                }
+              </button>
+            }
+          </nav>
+        </div>
       </section>
 
       <div
@@ -165,7 +170,7 @@
               <strong class="expense-value">{{ formatMoney(periodTotals().expense) }}</strong>
             }
           </div>
-          <div class="net-amount">
+          <div class="summary-amount">
             <span>Net</span>
             @if (loading()) {
               <span class="skeleton summary-skeleton"></span>
@@ -176,9 +181,7 @@
             }
           </div>
           <a class="report-button" routerLink="/report">
-            <span aria-hidden="true">▥</span>
             View report for this period
-            <span class="report-arrow" aria-hidden="true">→</span>
           </a>
         </section>
 

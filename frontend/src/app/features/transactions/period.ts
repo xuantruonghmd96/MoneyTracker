@@ -95,3 +95,36 @@ export function formatPeriodLabel(anchor: Date, type: PeriodType, short = false)
       return String(start.getFullYear());
   }
 }
+
+export function formatNavigationPeriodLabel(
+  anchor: Date,
+  type: PeriodType,
+  referenceDate: Date,
+  short = false,
+): string {
+  const periodStart = getPeriodBounds(anchor, type).start;
+  const currentStart = getPeriodBounds(referenceDate, type).start;
+  const comparison = periodStart.getTime() - currentStart.getTime();
+
+  if (type === 'Day') {
+    if (comparison === 0) return 'Today';
+    if (comparison < 0 && movePeriod(periodStart, type, 1).getTime() === currentStart.getTime()) {
+      return 'Yesterday';
+    }
+    return formatPeriodLabel(anchor, type, true);
+  }
+
+  if (type === 'Week' || type === 'Month' || type === 'Year') {
+    if (comparison === 0) return `This ${type.toLowerCase()}`;
+    if (comparison < 0 && movePeriod(periodStart, type, 1).getTime() === currentStart.getTime()) {
+      return `Last ${type.toLowerCase()}`;
+    }
+  }
+
+  if (type === 'Quarter') {
+    const quarter = Math.floor(periodStart.getMonth() / 3);
+    return `${['I', 'II', 'III', 'IV'][quarter]}-${periodStart.getFullYear()}`;
+  }
+
+  return formatPeriodLabel(anchor, type, short);
+}
