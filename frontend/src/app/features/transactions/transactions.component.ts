@@ -4,6 +4,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  HostListener,
   OnInit,
   ViewChild,
   computed,
@@ -59,6 +60,7 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
   private readonly periodRequests = new Subject<PeriodBoundsRequest>();
   private swipeStart: { x: number; y: number; pointerId: number } | null = null;
   @ViewChild('periodStrip') private periodStrip?: ElementRef<HTMLElement>;
+  readonly currentPeriodVisible = signal(false);
   readonly periodTypes = PERIOD_TYPES;
   readonly selectedDate = signal(new Date());
   readonly futureSelected = signal(false);
@@ -224,6 +226,7 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     this.scrollSelectedPeriodIntoView(false);
+    this.updateCurrentPeriodVisibility();
   }
 
   selectWallet(walletId: string | null): void {
@@ -253,6 +256,41 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
     this.futureSelected.set(true);
     this.reload();
     this.scrollSelectedPeriodIntoView();
+  }
+
+  goToCurrentPeriod(): void {
+    const now = new Date();
+    const currentBounds = getPeriodBounds(now, this.periodType());
+    const selectedBounds = getPeriodBounds(this.selectedDate(), this.periodType());
+    const selectionChanged =
+      this.futureSelected() || selectedBounds.start.getTime() !== currentBounds.start.getTime();
+
+    this.futureSelected.set(false);
+    this.selectedDate.set(currentBounds.start);
+    if (selectionChanged) this.reload();
+    this.scrollSelectedPeriodIntoView();
+  }
+
+  updateCurrentPeriodVisibility(): void {
+    const strip = this.periodStrip?.nativeElement;
+    const current = strip?.querySelector<HTMLElement>('[data-current-period="true"]');
+    if (!strip || !current) {
+      this.currentPeriodVisible.set(false);
+      return;
+    }
+
+    const stripBounds = strip.getBoundingClientRect();
+    const currentBounds = current.getBoundingClientRect();
+    const visible =
+      currentBounds.width > 0 &&
+      currentBounds.left >= stripBounds.left &&
+      currentBounds.right <= stripBounds.right;
+    this.currentPeriodVisible.set(visible);
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateCurrentPeriodVisibility();
   }
 
   selectPeriodType(type: PeriodType): void {
@@ -405,6 +443,7 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
         block: 'nearest',
         inline: 'center',
       });
+      this.updateCurrentPeriodVisibility();
     });
   }
 

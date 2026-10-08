@@ -211,6 +211,67 @@ describe('TransactionsComponent', () => {
     );
   });
 
+  it('hides the jump button only while the current period is fully visible', () => {
+    const fixture = TestBed.createComponent(TransactionsComponent);
+    fixture.detectChanges();
+    http.expectOne((request) => request.url === '/api/transactions').flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+
+    const component = fixture.componentInstance;
+    const strip = fixture.nativeElement.querySelector('.period-strip') as HTMLElement;
+    const currentPeriod = strip.querySelector('[data-current-period="true"]') as HTMLElement;
+    vi.spyOn(strip, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      right: 300,
+      width: 300,
+    } as DOMRect);
+    const currentBounds = vi.spyOn(currentPeriod, 'getBoundingClientRect');
+
+    currentBounds.mockReturnValue({ left: 25, right: 115, width: 90 } as DOMRect);
+    component.updateCurrentPeriodVisibility();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.jump-current-period')).toBeNull();
+
+    currentBounds.mockReturnValue({ left: 270, right: 360, width: 90 } as DOMRect);
+    component.updateCurrentPeriodVisibility();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.jump-current-period')).not.toBeNull();
+  });
+
+  it('jumps from Future to the current period and requests its date range', () => {
+    const fixture = TestBed.createComponent(TransactionsComponent);
+    fixture.detectChanges();
+
+    http.expectOne((request) => request.url === '/api/transactions').flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+
+    const component = fixture.componentInstance;
+    component.selectFuture();
+    http.expectOne((request) => request.url === '/api/transactions').flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+
+    fixture.detectChanges();
+    const jumpButton = fixture.nativeElement.querySelector(
+      '.jump-current-period',
+    ) as HTMLButtonElement;
+    jumpButton.click();
+
+    const currentBounds = getPeriodBounds(new Date(), component.periodType());
+    const currentRequest = http.expectOne((request) => request.url === '/api/transactions');
+    expect(currentRequest.request.params.get('from')).toBe(currentBounds.start.toISOString());
+    expect(currentRequest.request.params.get('to')).toBe(
+      new Date(currentBounds.end.getTime() - 1).toISOString(),
+    );
+    expect(component.futureSelected()).toBe(false);
+    expect(component.selectedDate()).toEqual(currentBounds.start);
+    currentRequest.flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+  });
+
   it('does not change periods for vertical gestures or gestures beginning on controls', () => {
     const fixture = TestBed.createComponent(TransactionsComponent);
     const component = fixture.componentInstance;

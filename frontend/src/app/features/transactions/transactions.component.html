@@ -122,12 +122,19 @@
         </div>
 
         <div class="period-strip-wrap">
-          <nav #periodStrip class="period-strip" aria-label="Choose period" tabindex="0">
+          <nav
+            #periodStrip
+            class="period-strip"
+            aria-label="Choose period"
+            tabindex="0"
+            (scroll)="updateCurrentPeriodVisibility()"
+          >
             @for (period of periods(); track period.key) {
               <button
                 type="button"
                 [class.selected]="period.selected"
                 [class.future-period]="period.isFuture"
+                [attr.data-current-period]="!period.isFuture && isCurrentPeriod(period.date) ? 'true' : null"
                 [attr.aria-pressed]="period.selected"
                 [attr.aria-label]="period.accessibleLabel"
                 [attr.aria-current]="!period.isFuture && isCurrentPeriod(period.date) ? 'date' : null"
@@ -143,6 +150,16 @@
               </button>
             }
           </nav>
+          @if (!currentPeriodVisible()) {
+            <button
+              class="jump-current-period"
+              type="button"
+              aria-label="Jump to current period"
+              (click)="goToCurrentPeriod()"
+            >
+              <span aria-hidden="true">»</span>
+            </button>
+          }
         </div>
       </section>
 

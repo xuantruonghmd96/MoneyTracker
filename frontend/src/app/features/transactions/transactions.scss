@@ -276,6 +276,34 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.jump-current-period {
+  position: absolute;
+  transform: translate(0, 80%);
+  z-index: 2;
+  min-height: 30px;
+  min-width: 60px;
+  border: 1px solid rgba(166, 217, 154, 0.28);
+  border-radius: 16px;
+  background: #202720;
+  box-shadow: 0 2px 9px rgba(0, 0, 0, 0.3);
+  color: #c5e2b9;
+  font-weight: 650;
+}
+
+.jump-current-period:hover {
+  border-color: rgba(166, 217, 154, 0.55);
+  background: #293229;
+}
+
+.jump-current-period:focus-visible {
+  outline: 2px solid #a6d99a;
+  outline-offset: 2px;
+}
+
+.jump-current-period > span {
+  font-size: 11px;
+}
+
 .period-strip::-webkit-scrollbar {
   height: 4px;
 }
@@ -730,6 +758,11 @@
 
   .period-strip-wrap {
     margin: 0 -12px;
+  }
+
+  .jump-current-period {
+    right: 7px;
+    bottom: 9px;
   }
 
   .period-strip button {
