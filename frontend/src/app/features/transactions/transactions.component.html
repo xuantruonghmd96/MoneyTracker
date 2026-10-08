@@ -1,0 +1,275 @@
+    <section class="transactions-page">
+      <section class="wallet-overview" aria-label="Wallet and period filters">
+        <div class="toolbar-row">
+          <div></div>
+
+          <div class="wallet-control">
+            <button
+              class="wallet-button"
+              type="button"
+              [attr.aria-expanded]="walletMenuOpen()"
+              aria-haspopup="listbox"
+              (click)="walletMenuOpen.update((open) => !open)"
+            >
+              <span class="wallet-button-icon" aria-hidden="true">▰</span>
+              <span>{{ selectedWalletName() }}</span>
+              <span class="chevron" aria-hidden="true">⌄</span>
+            </button>
+            @if (walletMenuOpen()) {
+              <div class="wallet-menu" role="listbox" aria-label="Select a wallet">
+                <button
+                  type="button"
+                  role="option"
+                  [attr.aria-selected]="selectedWalletId() === null"
+                  (click)="selectWallet(null)"
+                >
+                  <span>All wallets</span>
+                  @if (selectedWalletId() === null) {
+                    <span class="checkmark" aria-hidden="true">✓</span>
+                  }
+                </button>
+                @for (wallet of wallets(); track wallet.id) {
+                  <button
+                    type="button"
+                    role="option"
+                    [attr.aria-selected]="selectedWalletId() === wallet.id"
+                    (click)="selectWallet(wallet.id)"
+                  >
+                    <span>{{ wallet.name }}</span>
+                    @if (selectedWalletId() === wallet.id) {
+                      <span class="checkmark" aria-hidden="true">✓</span>
+                    }
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="toolbar-actions">
+            <button
+              class="icon-button"
+              type="button"
+              [attr.aria-label]="searchOpen() ? 'Close transaction search' : 'Search transactions'"
+              [attr.aria-expanded]="searchOpen()"
+              (click)="searchOpen.update((open) => !open)"
+            >
+              <span aria-hidden="true">⌕</span>
+            </button>
+            <div class="period-menu-wrap">
+              <button
+                class="icon-button"
+                type="button"
+                aria-label="Open menu"
+                [attr.aria-expanded]="menuOpen()"
+                (click)="toggleMenu()"
+              >
+                <span aria-hidden="true">⋮</span>
+              </button>
+              @if (menuOpen()) {
+                <div class="overflow-menu" role="menu">
+                  <button type="button" role="menuitem" (click)="openPeriodTypes()">
+                    <span>Select period</span>
+                    <span class="menu-value">{{ periodType() }} <span aria-hidden="true">›</span></span>
+                  </button>
+                </div>
+              } @else if (periodTypesOpen()) {
+                <div class="overflow-menu period-types-menu" role="menu" aria-label="Select period type">
+                  <p>Period type</p>
+                  @for (type of periodTypes; track type) {
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      [attr.aria-checked]="periodType() === type"
+                      [class.selected-type]="periodType() === type"
+                      (click)="selectPeriodType(type)"
+                    >
+                      <span>{{ type }}</span>
+                      @if (periodType() === type) {
+                        <span class="checkmark" aria-hidden="true">✓</span>
+                      }
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        @if (searchOpen()) {
+          <label class="search-field">
+            <span aria-hidden="true">⌕</span>
+            <input
+              type="search"
+              [value]="searchQuery()"
+              (input)="setSearchQuery($event)"
+              placeholder="Search notes, categories, amounts…"
+              aria-label="Search transactions"
+            />
+            @if (searchQuery()) {
+              <button type="button" aria-label="Clear search" (click)="searchQuery.set('')">×</button>
+            }
+          </label>
+        }
+
+        <div class="balance-row">
+          <span class="balance-label">Opening balance <span aria-hidden="true">ⓘ</span></span>
+          @if (loading()) {
+            <span class="skeleton balance-skeleton"></span>
+          } @else {
+            <strong>{{ openingBalance() }}</strong>
+          }
+        </div>
+
+        <nav class="period-strip" aria-label="Choose period">
+          @for (period of periods(); track period.accessibleLabel) {
+            <button
+              type="button"
+              [class.selected]="period.selected"
+              [attr.aria-pressed]="period.selected"
+              [attr.aria-label]="period.accessibleLabel"
+              (click)="selectPeriod(period.date)"
+            >
+              <span>{{ period.label }}</span>
+              @if (period.selected) {
+                <span class="selected-period-indicator" aria-hidden="true"></span>
+              }
+              @if (isCurrentPeriod(period.date)) {
+                <span class="current-dot" aria-label="Current period"></span>
+              }
+            </button>
+          }
+        </nav>
+      </section>
+
+      <div
+        class="period-content"
+        aria-label="Period summary and transactions. Swipe left or right to change period."
+        (pointerdown)="onSwipeStart($event)"
+        (pointerup)="onSwipeEnd($event)"
+        (pointercancel)="resetSwipe()"
+      >
+        <section class="period-summary" aria-label="Period totals">
+          <div class="summary-amount">
+            <span><i class="income-dot"></i> Inflow</span>
+            @if (loading()) {
+              <span class="skeleton summary-skeleton"></span>
+            } @else {
+              <strong class="income-value">{{ formatMoney(periodTotals().income) }}</strong>
+            }
+          </div>
+          <div class="summary-amount">
+            <span><i class="expense-dot"></i> Outflow</span>
+            @if (loading()) {
+              <span class="skeleton summary-skeleton"></span>
+            } @else {
+              <strong class="expense-value">{{ formatMoney(periodTotals().expense) }}</strong>
+            }
+          </div>
+          <div class="net-amount">
+            <span>Net</span>
+            @if (loading()) {
+              <span class="skeleton summary-skeleton"></span>
+            } @else {
+              <strong [class.negative]="periodTotals().net < 0">
+                {{ formatMoney(periodTotals().net) }}
+              </strong>
+            }
+          </div>
+          <a class="report-button" routerLink="/report">
+            <span aria-hidden="true">▥</span>
+            View report for this period
+            <span class="report-arrow" aria-hidden="true">→</span>
+          </a>
+        </section>
+
+        <section class="activity-section" aria-labelledby="activity-title">
+          <div class="activity-heading">
+            @if (!loading() && filteredTransactions().length) {
+              <span class="transaction-count">
+                {{ filteredTransactions().length }}
+                {{ filteredTransactions().length === 1 ? 'transaction' : 'transactions' }}
+              </span>
+            }
+          </div>
+
+          @if (errorMessage()) {
+            <div class="state-card error-state" role="alert">
+              <span class="state-icon" aria-hidden="true">!</span>
+              <h3>Transactions couldn’t load</h3>
+              <p>{{ errorMessage() }}</p>
+              <button type="button" (click)="reload()">Try again</button>
+            </div>
+          } @else if (loading()) {
+            <div class="loading-list" aria-label="Loading transactions">
+              @for (item of [1, 2, 3]; track item) {
+                <div class="loading-day">
+                  <span class="skeleton date-skeleton"></span>
+                  <span class="skeleton transaction-skeleton"></span>
+                </div>
+              }
+            </div>
+          } @else if (!filteredTransactions().length) {
+            <div class="state-card empty-state">
+              <span class="state-icon" aria-hidden="true">{{ searchQuery() ? '⌕' : '✳' }}</span>
+              <h3>{{ searchQuery() ? 'No matching transactions' : 'Nothing recorded this period' }}</h3>
+              <p>
+                {{
+                  searchQuery()
+                    ? 'Try a different search or clear the filter.'
+                    : 'Your transactions for this period will appear here.'
+                }}
+              </p>
+              @if (searchQuery()) {
+                <button type="button" (click)="searchQuery.set('')">Clear search</button>
+              }
+            </div>
+          } @else {
+            <div class="transaction-days">
+              @for (day of transactionDays(); track day.key) {
+                <section class="day-group">
+                  <header class="day-heading">
+                    <div class="day-date">
+                      <span class="day-number">{{ day.dayNumber }}</span>
+                      <span class="day-description">
+                        <strong>{{ day.weekday }}</strong>
+                        <span>{{ day.dateLabel }}</span>
+                      </span>
+                    </div>
+                    <span class="day-total" [class.positive]="day.total > 0">
+                      {{ day.total > 0 ? '+' : '' }}{{ formatMoney(day.total) }}
+                    </span>
+                  </header>
+                  <div class="day-transactions">
+                    @for (transaction of day.transactions; track transaction.id) {
+                      <article class="transaction-row">
+                        <span
+                          class="category-icon"
+                          [style.--category-color]="categoryColor(transaction.categoryId)"
+                          [class.income-icon]="transactionType(transaction.categoryId) === 'Income'"
+                          [class.debt-icon]="transactionType(transaction.categoryId) === 'Debt'"
+                          aria-hidden="true"
+                        >
+                          {{ categoryIcon(transaction.categoryId) }}
+                        </span>
+                        <div class="transaction-description">
+                          <strong>{{ categoryName(transaction.categoryId) }}</strong>
+                          <span>{{ transaction.note || walletName(transaction.walletId) }}</span>
+                        </div>
+                        <span
+                          class="transaction-amount"
+                          [class.income-amount]="transactionAmount(transaction) > 0"
+                          [class.debt-amount]="transactionType(transaction.categoryId) === 'Debt'"
+                        >
+                          {{ transactionAmount(transaction) > 0 ? '+' : '−'
+                          }}{{ formatMoney(transaction.amount) }}
+                        </span>
+                      </article>
+                    }
+                  </div>
+                </section>
+              }
+            </div>
+          }
+        </section>
+      </div>
+    </section>
