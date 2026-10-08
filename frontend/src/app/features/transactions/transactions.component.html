@@ -130,7 +130,7 @@
             (scroll)="onPeriodStripScroll()"
           >
             @for (period of periods(); track period.key) {
-              <button
+              <button class="period-button"
                 type="button"
                 [class.selected]="period.selected"
                 [class.future-period]="period.isFuture"
