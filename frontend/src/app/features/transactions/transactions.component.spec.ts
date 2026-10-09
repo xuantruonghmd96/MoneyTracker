@@ -2,32 +2,69 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
+import { provideRouter, Router, RouterOutlet } from '@angular/router';
 import { Category, Transaction, Wallet } from '../../core/api.models';
 import { LanguageService } from '../../core/language.service';
 import { TransactionsComponent } from './transactions.component';
+import { TransactionsViewState } from './transactions-view-state.service';
 import { getPeriodBounds } from './period';
 
 @Component({ standalone: true, template: '' })
 class ReportRouteStub {}
 
+@Component({ standalone: true, imports: [RouterOutlet], template: '<router-outlet />' })
+class RouterHostStub {}
+
 describe('TransactionsComponent', () => {
   let http: HttpTestingController;
+  let clientWidthDescriptor: PropertyDescriptor | undefined;
+  let scrollWidthDescriptor: PropertyDescriptor | undefined;
+  let scrollToDescriptor: PropertyDescriptor | undefined;
 
   beforeEach(() => {
     localStorage.removeItem('money-tracker.language');
+    clientWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    scrollWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+    scrollToDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollTo');
     TestBed.configureTestingModule({
       imports: [TransactionsComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideRouter([{ path: 'report', component: ReportRouteStub }]),
+        provideRouter([
+          { path: '', component: TransactionsComponent },
+          { path: 'categories', component: ReportRouteStub },
+          { path: 'report', component: ReportRouteStub },
+        ]),
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    const viewState = TestBed.inject(TransactionsViewState);
+    viewState.selectedDate.set(new Date());
+    viewState.futureSelected.set(false);
+    viewState.periodType.set('Month');
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    if (clientWidthDescriptor) {
+      Object.defineProperty(HTMLElement.prototype, 'clientWidth', clientWidthDescriptor);
+    } else {
+      Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
+    }
+    if (scrollWidthDescriptor) {
+      Object.defineProperty(HTMLElement.prototype, 'scrollWidth', scrollWidthDescriptor);
+    } else {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollWidth');
+    }
+    if (scrollToDescriptor) {
+      Object.defineProperty(HTMLElement.prototype, 'scrollTo', scrollToDescriptor);
+    } else {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo');
+    }
+  });
 
   it('navigates to the report when any part of the period summary is clicked', async () => {
     const fixture = TestBed.createComponent(TransactionsComponent);
@@ -46,6 +83,73 @@ describe('TransactionsComponent', () => {
     await fixture.whenStable();
 
     expect(TestBed.inject(Router).url).toBe('/report');
+  });
+
+  it('preserves the selected period and scrolls it into view when returning from another route', async () => {
+    const fixture = TestBed.createComponent(RouterHostStub);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/');
+    fixture.detectChanges();
+
+    http.expectOne((request) => request.url === '/api/transactions').flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+
+    const initialComponent = fixture.debugElement.query(
+      (element) => element.componentInstance instanceof TransactionsComponent,
+    ).componentInstance as TransactionsComponent;
+    const historicalPeriod = initialComponent.periods()[25];
+    initialComponent.selectPeriod(historicalPeriod.date);
+    http.expectOne((request) => request.url === '/api/transactions').flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+    fixture.detectChanges();
+
+    await router.navigateByUrl('/categories');
+
+    const getBoundingClientRect = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement): DOMRect {
+        if (this.classList.contains('period-strip')) {
+          return { left: 0, right: 300, width: 300 } as DOMRect;
+        }
+        if (this.getAttribute('aria-pressed') === 'true') {
+          const strip = this.closest('.period-strip') as HTMLElement;
+          const left = 3200 - strip.scrollLeft;
+          return { left, right: left + 100, width: 100 } as DOMRect;
+        }
+        return { left: 0, right: 0, width: 0 } as DOMRect;
+      });
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get() {
+        return this.classList.contains('period-strip') ? 300 : 0;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
+      configurable: true,
+      get() {
+        return this.classList.contains('period-strip') ? 4000 : 0;
+      },
+    });
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+
+    await router.navigateByUrl('/');
+    fixture.detectChanges();
+
+    http.expectOne((request) => request.url === '/api/transactions').flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+    fixture.detectChanges();
+
+    const strip = fixture.nativeElement.querySelector('.period-strip') as HTMLElement;
+    expect(fixture.nativeElement.querySelector('.period-strip button.selected span').textContent)
+      .toBe(historicalPeriod.label);
+    expect(strip.scrollLeft).toBe(3100);
+    expect(getBoundingClientRect).toHaveBeenCalled();
   });
 
   it('filters by wallet and calculates period totals from the selected wallet', () => {

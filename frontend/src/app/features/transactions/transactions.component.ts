@@ -1,10 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import {
+  afterNextRender,
   AfterViewInit,
   Component,
   DestroyRef,
   ElementRef,
   HostListener,
+  Injector,
   OnInit,
   ViewChild,
   computed,
@@ -17,6 +19,7 @@ import { catchError, forkJoin, of, Subject, switchMap, tap } from 'rxjs';
 import { Category, CategoryType, Transaction, Wallet } from '../../core/api.models';
 import { LanguageService, TranslationKey } from '../../core/language.service';
 import { MoneyApiService } from '../../core/money-api.service';
+import { TransactionsViewState } from './transactions-view-state.service';
 import {
   PeriodDirection,
   PeriodType,
@@ -67,6 +70,8 @@ const FUTURE_RANGE_END = new Date(Date.UTC(9999, 11, 31, 23, 59, 59, 999));
 export class TransactionsComponent implements OnInit, AfterViewInit {
   private readonly api = inject(MoneyApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
+  private readonly viewState = inject(TransactionsViewState);
   readonly language = inject(LanguageService);
   private readonly periodRequests = new Subject<PeriodBoundsRequest>();
   private swipeStart: { x: number; y: number; pointerId: number } | null = null;
@@ -75,9 +80,9 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
   @ViewChild('periodStrip') private periodStrip?: ElementRef<HTMLElement>;
   readonly currentPeriodVisible = signal(false);
   readonly periodTypes = PERIOD_TYPES;
-  readonly selectedDate = signal(new Date());
-  readonly futureSelected = signal(false);
-  readonly periodType = signal<PeriodType>('Month');
+  readonly selectedDate = this.viewState.selectedDate;
+  readonly futureSelected = this.viewState.futureSelected;
+  readonly periodType = this.viewState.periodType;
   readonly selectedWalletId = signal<string | null>(null);
   readonly walletMenuOpen = signal(false);
   readonly menuOpen = signal(false);
@@ -259,6 +264,7 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
           this.wallets.set(data.wallets);
         }
         this.loading.set(false);
+        this.scrollSelectedPeriodIntoView(false);
       });
 
     this.reload();
@@ -556,18 +562,48 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
   }
 
   private scrollSelectedPeriodIntoView(smooth = true): void {
-    if (typeof requestAnimationFrame !== 'function') return;
-    requestAnimationFrame(() => {
-      const selected = this.periodStrip?.nativeElement.querySelector<HTMLElement>(
-        '[aria-pressed="true"]',
-      );
-      selected?.scrollIntoView?.({
-        behavior: smooth ? 'smooth' : 'auto',
-        block: 'nearest',
-        inline: 'center',
-      });
-      this.updateCurrentPeriodVisibility();
-    });
+    afterNextRender(
+      () => {
+        const positionSelectedPeriod = () => {
+          const strip = this.periodStrip?.nativeElement;
+          const selected = strip?.querySelector<HTMLElement>('[aria-pressed="true"]');
+          if (!strip || !selected) return;
+
+          const stripBounds = strip.getBoundingClientRect();
+          const selectedBounds = selected.getBoundingClientRect();
+          if (strip.clientWidth === 0 || selectedBounds.width === 0) return;
+
+          const maxScrollLeft = strip.scrollWidth - strip.clientWidth;
+          const left = Math.max(
+            0,
+            Math.min(
+              maxScrollLeft,
+              strip.scrollLeft +
+                selectedBounds.left -
+                stripBounds.left -
+                (strip.clientWidth - selectedBounds.width) / 2,
+            ),
+          );
+
+          if (smooth) {
+            strip.scrollTo({ left, behavior: 'smooth' });
+          } else {
+            const previousBehavior = strip.style.scrollBehavior;
+            strip.style.scrollBehavior = 'auto';
+            strip.scrollLeft = left;
+            strip.style.scrollBehavior = previousBehavior;
+          }
+          this.updateCurrentPeriodVisibility();
+        };
+
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(positionSelectedPeriod);
+        } else {
+          positionSelectedPeriod();
+        }
+      },
+      { injector: this.injector },
+    );
   }
 
   private transactionsForSelectedWallet(): Transaction[] {
