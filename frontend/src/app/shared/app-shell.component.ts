@@ -20,7 +20,7 @@ import { LanguageSelectorComponent } from './language-selector.component';
             <span aria-hidden="true">⇄</span> {{ language.t('nav.transactions') }}
           </a>
           <a routerLink="/categories" routerLinkActive="active">
-            <span aria-hidden="true">◈</span> {{ language.t('nav.categories') }} <small>{{ language.t('nav.soon') }}</small>
+            <span aria-hidden="true">◈</span> {{ language.t('nav.categories') }}
           </a>
           <a routerLink="/wallets" routerLinkActive="active">
             <span aria-hidden="true">▰</span> {{ language.t('nav.wallets') }}

@@ -3,9 +3,11 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   Category,
+  CreateCategoryRequest,
   CreateWalletRequest,
   MonthlyReport,
   Transaction,
+  UpdateCategoryRequest,
   UpdateWalletRequest,
   Wallet,
 } from './api.models';
@@ -26,6 +28,18 @@ export class MoneyApiService {
 
   getCategories(): Observable<Category[]> {
     return this.http.get<Category[]>('/api/categories');
+  }
+
+  createCategory(request: CreateCategoryRequest): Observable<Category> {
+    return this.http.post<Category>('/api/categories', request);
+  }
+
+  updateCategory(id: string, request: UpdateCategoryRequest): Observable<Category> {
+    return this.http.put<Category>(`/api/categories/${id}`, request);
+  }
+
+  deleteCategory(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/categories/${id}`);
   }
 
   getWallets(): Observable<Wallet[]> {

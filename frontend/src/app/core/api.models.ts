@@ -23,9 +23,33 @@ export interface Category {
   id: string;
   name: string;
   type: CategoryType;
+  parentId: string | null;
+  appliesToAllWallets: boolean;
   icon: string | null;
   color: string | null;
+  isSystem: boolean;
   systemKey: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateCategoryRequest {
+  id?: string;
+  name: string;
+  type: CategoryType;
+  parentId: string | null;
+  appliesToAllWallets: boolean;
+  icon: string | null;
+  color: string | null;
+  assignToWalletIds?: string[] | null;
+}
+
+export interface UpdateCategoryRequest {
+  name: string;
+  parentId: string | null;
+  appliesToAllWallets: boolean;
+  icon: string | null;
+  color: string | null;
 }
 
 export interface Wallet {

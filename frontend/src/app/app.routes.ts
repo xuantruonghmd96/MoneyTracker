@@ -42,7 +42,14 @@ export const routes: Routes = [
             (module) => module.WalletsComponent,
           ),
       },
-      ...['categories', 'report', 'add-transaction'].map((path) => ({
+      {
+        path: 'categories',
+        loadComponent: () =>
+          import('./features/categories/categories.component').then(
+            (module) => module.CategoriesComponent,
+          ),
+      },
+      ...['report', 'add-transaction'].map((path) => ({
         path,
         loadComponent: () =>
           import('./shared/coming-soon.component').then((module) => module.ComingSoonComponent),
