@@ -1,0 +1,181 @@
+:host {
+  display: block;
+}
+
+.transaction-form-page {
+  display: grid;
+  width: min(100%, 640px);
+  gap: 18px;
+  margin: 0 auto;
+}
+
+.form-heading {
+  display: grid;
+  gap: 13px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.form-heading h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.back-button {
+  display: flex;
+  width: fit-content;
+  min-height: 30px;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--subtle);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.back-button:hover {
+  color: var(--text);
+}
+
+.transaction-form {
+  display: grid;
+  gap: 17px;
+}
+
+.transaction-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.transaction-field {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--subtle);
+  font-size: 11px;
+}
+
+.transaction-field input,
+.transaction-field select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: #131713;
+  color: var(--text);
+  font: inherit;
+  color-scheme: dark;
+}
+
+.transaction-field input:focus,
+.transaction-field select:focus {
+  border-color: var(--green);
+  outline: 1px solid var(--green);
+}
+
+.date-time-control {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  gap: 5px;
+}
+
+.date-time-control input {
+  min-width: 0;
+}
+
+.date-time-control button {
+  min-width: 34px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: #1a1f1b;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 18px;
+}
+
+.transaction-field small,
+.form-error {
+  margin: 0;
+  color: #f0a19b;
+  font-size: 11px;
+}
+
+.form-status {
+  margin: 0;
+  color: var(--subtle);
+  font-size: 11px;
+}
+
+.form-error button,
+.category-assignment-error button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+
+.category-assignment-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #f0a19b;
+  font-size: 11px;
+}
+
+.transaction-note-field {
+  grid-column: 1 / -1;
+}
+
+.transaction-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.transaction-form-actions button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.transaction-form-actions .primary-button {
+  border-color: var(--green);
+  background: var(--green);
+  color: #10140f;
+  font-weight: 600;
+}
+
+.transaction-form-actions button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+@media (max-width: 600px) {
+  .transaction-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .transaction-note-field {
+    grid-column: auto;
+  }
+}

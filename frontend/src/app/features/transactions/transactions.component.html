@@ -216,127 +216,6 @@
             }
           </div>
 
-          @if (formMode()) {
-            <div class="transaction-dialog-backdrop" (click)="closeForm()">
-              <form
-                class="transaction-form"
-                [formGroup]="form"
-                (click)="$event.stopPropagation()"
-                (ngSubmit)="saveTransaction()"
-                role="dialog"
-                aria-modal="true"
-                [attr.aria-labelledby]="'transaction-form-title'"
-              >
-                <h2 id="transaction-form-title">
-                  {{ language.t(formMode() === 'create' ? 'transactions.add' : 'transactions.edit') }}
-                </h2>
-                @if (saveError()) {
-                  <p class="mutation-error" role="alert">{{ language.t(saveError()!) }}</p>
-                }
-                <div class="transaction-form-grid">
-                  <label class="transaction-field">
-                    <span>{{ language.t('transactions.amount') }}</span>
-                    <input formControlName="amount" type="number" min="0.01" step="0.01" required />
-                    @if (form.controls.amount.touched && form.controls.amount.invalid) {
-                      <small>{{ language.t('transactions.amountRequired') }}</small>
-                    }
-                  </label>
-                  <label class="transaction-field">
-                    <span>{{ language.t('transactions.date') }}</span>
-                    <div class="date-time-control">
-                      <button
-                        type="button"
-                        [attr.aria-label]="language.t('transactions.previousDay')"
-                        (click)="shiftOccurredAtDay(-1)"
-                      >
-                        ‹
-                      </button>
-                      <input formControlName="occurredAt" type="datetime-local" required />
-                      <button
-                        type="button"
-                        [attr.aria-label]="language.t('transactions.nextDay')"
-                        (click)="shiftOccurredAtDay(1)"
-                      >
-                        ›
-                      </button>
-                    </div>
-                  </label>
-                  <label class="transaction-field">
-                    <span>{{ language.t('transactions.wallet') }}</span>
-                    <select formControlName="walletId" required>
-                      <option value="">{{ language.t('transactions.selectWallet') }}</option>
-                      @for (wallet of wallets(); track wallet.id) {
-                        <option [value]="wallet.id">{{ wallet.name }}</option>
-                      }
-                    </select>
-                  </label>
-                  <label class="transaction-field">
-                    <span>{{ language.t('transactions.category') }}</span>
-                    <select formControlName="categoryId" required>
-                      <option value="">{{ language.t('transactions.selectCategory') }}</option>
-                      @for (category of selectableCategories(); track category.id) {
-                        <option [value]="category.id">{{ category.name }}</option>
-                      }
-                    </select>
-                  </label>
-                  <label class="transaction-field">
-                    <span>{{ language.t('transactions.participant') }}</span>
-                    <select formControlName="participantId">
-                      <option [ngValue]="null">{{ language.t('transactions.noParticipant') }}</option>
-                      @for (participant of participants(); track participant.id) {
-                        <option [value]="participant.id">{{ participant.name }}</option>
-                      }
-                    </select>
-                    @if (participantsLoading()) {
-                      <small>{{ language.t('transactions.loadingParticipants') }}</small>
-                    } @else if (participantsError()) {
-                      <small class="mutation-error" role="alert">{{ language.t(participantsError()!) }}</small>
-                    }
-                  </label>
-                  <label class="transaction-field transaction-note-field">
-                    <span>{{ language.t('transactions.note') }}</span>
-                    <input formControlName="note" maxlength="2048" autocomplete="off" />
-                  </label>
-                </div>
-                @if (!wallets().length || !categories().length) {
-                  <p class="mutation-error" role="alert">{{ language.t('transactions.missingSetup') }}</p>
-                }
-                @if (categoryAssignmentsLoading()) {
-                  <p class="mutation-error" role="status">{{ language.t('transactions.loadingCategoryWallets') }}</p>
-                } @else if (categoryAssignmentsError()) {
-                  <div class="category-assignment-error" role="alert">
-                    <span>{{ language.t('transactions.errorCategoryWallets') }}</span>
-                    <button type="button" (click)="retryCategoryAssignments()">
-                      {{ language.t('transactions.tryAgain') }}
-                    </button>
-                  </div>
-                } @else if (formMode() === 'create' && formWalletId() && !selectableCategories().length) {
-                  <p class="mutation-error" role="alert">{{ language.t('transactions.noCategoriesForWallet') }}</p>
-                }
-                <div class="transaction-form-actions">
-                  <button class="secondary-button" type="button" [disabled]="saving()" (click)="closeForm()">
-                    {{ language.t('transactions.cancel') }}
-                  </button>
-                  <button
-                    class="primary-button"
-                    type="submit"
-                    [disabled]="
-                      saving() ||
-                      participantsLoading() ||
-                      categoryAssignmentsLoading() ||
-                      categoryAssignmentsError() ||
-                      !wallets().length ||
-                      !categories().length ||
-                      (formMode() === 'create' && !selectableCategories().length)
-                    "
-                  >
-                    {{ language.t(saving() ? 'transactions.saving' : 'transactions.save') }}
-                  </button>
-                </div>
-              </form>
-            </div>
-          }
-
           @if (errorMessage()) {
             <div class="state-card error-state" role="alert">
               <span class="state-icon" aria-hidden="true">!</span>
@@ -387,7 +266,10 @@
                   <div class="day-transactions">
                     @for (transaction of day.transactions; track transaction.id) {
                       <div class="transaction-item">
-                        <article class="transaction-row">
+                        <a
+                          class="transaction-row"
+                          [routerLink]="['/transactions', transaction.id, 'edit']"
+                        >
                           <span
                             class="category-icon"
                             [style.--category-color]="categoryColor(transaction.categoryId)"
@@ -409,15 +291,12 @@
                             {{ transactionAmount(transaction) > 0 ? '+' : '−'
                             }}{{ formatWalletMoney(transaction.amount, walletCurrency(transaction.walletId)) }}
                           </span>
-                          <div class="transaction-actions">
-                            <button type="button" [disabled]="saving() || deletingId() !== null" (click)="$event.stopPropagation(); openEdit(transaction)">
-                              {{ language.t('transactions.edit') }}
-                            </button>
-                            <button type="button" [disabled]="saving() || deletingId() !== null" (click)="requestDelete(transaction)">
-                              {{ language.t('transactions.delete') }}
-                            </button>
-                          </div>
-                        </article>
+                        </a>
+                        <div class="transaction-actions">
+                          <button type="button" [disabled]="deletingId() !== null" (click)="requestDelete(transaction)">
+                            {{ language.t('transactions.delete') }}
+                          </button>
+                        </div>
                         @if (confirmDeleteId() === transaction.id) {
                           <div class="transaction-delete-confirmation">
                             <span>{{ language.t('transactions.confirmDelete') }}</span>

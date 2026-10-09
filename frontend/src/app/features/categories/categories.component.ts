@@ -1,7 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { Category, CategoryType, CreateCategoryRequest, UpdateCategoryRequest, Wallet } from '../../core/api.models';
 import { LanguageService, TranslationKey } from '../../core/language.service';
@@ -11,29 +13,44 @@ type CategoryFormMode = 'create' | 'edit' | null;
 
 @Component({
   selector: 'app-categories',
-  imports: [ReactiveFormsModule],
+  imports: [NgTemplateOutlet, ReactiveFormsModule, RouterLink],
   template: `
     <section class="categories-page">
-      <header class="page-heading">
-        <div>
-          <p class="eyebrow">{{ language.t('categories.eyebrow') }}</p>
-          <h1>{{ language.t('categories.title') }}</h1>
-          <p class="subtitle">{{ language.t('categories.subtitle') }}</p>
-        </div>
-        @if (!formMode()) {
-          <button class="primary-button" type="button" (click)="openCreate()">
+      @if (formMode()) {
+        <header class="form-page-heading">
+          <a class="back-link" routerLink="/categories">← {{ language.t('categories.cancel') }}</a>
+          <h1>{{ language.t(formMode() === 'create' ? 'categories.add' : 'categories.edit') }}</h1>
+        </header>
+      } @else {
+        <header class="page-heading">
+          <div>
+            <p class="eyebrow">{{ language.t('categories.eyebrow') }}</p>
+            <h1>{{ language.t('categories.title') }}</h1>
+            <p class="subtitle">{{ language.t('categories.subtitle') }}</p>
+          </div>
+          <a class="primary-button" routerLink="/categories/new">
             <span aria-hidden="true">+</span> {{ language.t('categories.add') }}
-          </button>
-        }
-      </header>
+          </a>
+        </header>
+      }
 
-      @if (errorKey()) {
+      @if (errorKey() && !formMode()) {
         <p class="error-message" role="alert">{{ language.t(errorKey()!) }}</p>
       }
 
       @if (formMode()) {
-        <form class="category-form" [formGroup]="form" (ngSubmit)="save()">
-          <h2>{{ language.t(formMode() === 'create' ? 'categories.add' : 'categories.edit') }}</h2>
+        @if (loading() || walletsLoading()) {
+          <p class="status-message" role="status">{{ language.t('transactions.loading') }}</p>
+        } @else if (loadFailed() || walletsLoadFailed()) {
+          <p class="error-message" role="alert">{{ language.t(errorKey()!) }}</p>
+          <button class="secondary-button retry-button" type="button" (click)="retryFormLoad()">
+            {{ language.t('categories.loadRetry') }}
+          </button>
+        } @else {
+          <form class="category-form" [formGroup]="form" (ngSubmit)="save()">
+          @if (errorKey()) {
+            <p class="error-message" role="alert">{{ language.t(errorKey()!) }}</p>
+          }
           <div class="form-grid">
             <label class="field">
               <span>{{ language.t('categories.name') }}</span>
@@ -116,10 +133,10 @@ type CategoryFormMode = 'create' | 'edit' | null;
               {{ language.t(saving() ? 'categories.saving' : 'categories.save') }}
             </button>
           </div>
-        </form>
-      }
+          </form>
+        }
 
-      @if (loading()) {
+      } @else if (loading()) {
         <p class="status-message" role="status">{{ language.t('transactions.loading') }}</p>
       } @else if (loadFailed()) {
         <button class="secondary-button retry-button" type="button" (click)="loadCategories()">
@@ -130,49 +147,55 @@ type CategoryFormMode = 'create' | 'edit' | null;
           <span class="empty-icon" aria-hidden="true">◈</span>
           <h2>{{ language.t('categories.emptyTitle') }}</h2>
           <p>{{ language.t('categories.emptyDescription') }}</p>
-          @if (!formMode()) {
-            <button class="primary-button" type="button" (click)="openCreate()">
-              {{ language.t('categories.add') }}
-            </button>
-          }
+          <a class="primary-button" routerLink="/categories/new">
+            {{ language.t('categories.add') }}
+          </a>
         </section>
       } @else {
         <section class="category-list" [attr.aria-label]="language.t('categories.title')">
           @for (category of categories(); track category.id) {
             <article class="category-card">
-              <div class="category-topline">
-                <span class="category-icon" [style.background-color]="category.color || null" aria-hidden="true">
-                  {{ category.icon || '◈' }}
-                </span>
-                <div class="category-summary">
-                  <h2>{{ category.name }}</h2>
-                  <div class="meta-row">
-                    <span class="badge type-badge">{{ language.t(categoryTypeLabelKey(category.type)) }}</span>
-                    @if (category.isSystem) {
-                      <span class="badge system-badge">{{ language.t('categories.system') }}</span>
-                    }
-                    @if (category.appliesToAllWallets) {
-                      <span class="badge scope-badge">{{ language.t('categories.allWallets') }}</span>
-                    }
+              @if (canManage(category)) {
+                <a class="category-edit-link" [routerLink]="['/categories', category.id, 'edit']">
+                  <ng-container [ngTemplateOutlet]="categoryDetailsContent" />
+                </a>
+              } @else {
+                <div class="category-static-content">
+                  <ng-container [ngTemplateOutlet]="categoryDetailsContent" />
+                </div>
+              }
+              <ng-template #categoryDetailsContent>
+                <div class="category-topline">
+                  <span class="category-icon" [style.background-color]="category.color || null" aria-hidden="true">
+                    {{ category.icon || '◈' }}
+                  </span>
+                  <div class="category-summary">
+                    <h2>{{ category.name }}</h2>
+                    <div class="meta-row">
+                      <span class="badge type-badge">{{ language.t(categoryTypeLabelKey(category.type)) }}</span>
+                      @if (category.isSystem) {
+                        <span class="badge system-badge">{{ language.t('categories.system') }}</span>
+                      }
+                      @if (category.appliesToAllWallets) {
+                        <span class="badge scope-badge">{{ language.t('categories.allWallets') }}</span>
+                      }
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div class="category-details">
-                <div>
-                  <span>{{ language.t('categories.parent') }}</span>
-                  <strong>{{ category.parentId ? parentName(category.parentId) : language.t('categories.root') }}</strong>
+                <div class="category-details">
+                  <div>
+                    <span>{{ language.t('categories.parent') }}</span>
+                    <strong>{{ category.parentId ? parentName(category.parentId) : language.t('categories.root') }}</strong>
+                  </div>
+                  <div>
+                    <span>{{ language.t('categories.scope') }}</span>
+                    <strong>{{ category.appliesToAllWallets ? language.t('categories.allWallets') : language.t('categories.selectedWallets') }}</strong>
+                  </div>
                 </div>
-                <div>
-                  <span>{{ language.t('categories.scope') }}</span>
-                  <strong>{{ category.appliesToAllWallets ? language.t('categories.allWallets') : language.t('categories.selectedWallets') }}</strong>
-                </div>
-              </div>
+              </ng-template>
 
               <div class="card-actions">
-                <button class="text-button" type="button" [disabled]="!canManage(category)" (click)="openEdit(category)">
-                  {{ language.t('categories.edit') }}
-                </button>
                 <button class="text-button danger-text" type="button" [disabled]="!canManage(category)" (click)="requestDelete(category)">
                   {{ language.t('categories.delete') }}
                 </button>
@@ -208,6 +231,34 @@ type CategoryFormMode = 'create' | 'edit' | null;
       align-items: flex-end;
       justify-content: space-between;
       gap: 14px;
+    }
+    .form-page-heading {
+      display: grid;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .form-page-heading h1 {
+      font-size: 18px;
+    }
+    .back-link,
+    .category-edit-link {
+      color: inherit;
+      text-decoration: none;
+    }
+    .back-link {
+      width: fit-content;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .category-edit-link,
+    .category-static-content {
+      display: grid;
+      gap: 14px;
+    }
+    .category-edit-link:focus-visible {
+      outline: 1px solid var(--green);
+      outline-offset: 3px;
     }
     .eyebrow {
       margin: 0 0 6px;
@@ -405,6 +456,9 @@ type CategoryFormMode = 'create' | 'edit' | null;
     }
     .retry-button {
       justify-self: start;
+    }
+    .retry-button {
+      justify-self: start;
       min-height: 34px;
       padding: 0 13px;
       border: 1px solid var(--border);
@@ -578,11 +632,15 @@ type CategoryFormMode = 'create' | 'edit' | null;
 export class CategoriesComponent {
   private readonly api = inject(MoneyApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   readonly language = inject(LanguageService);
   readonly categories = signal<Category[]>([]);
   readonly wallets = signal<Wallet[]>([]);
   readonly selectedWalletIds = signal<string[]>([]);
   readonly loading = signal(true);
+  readonly walletsLoading = signal(true);
+  readonly walletsLoadFailed = signal(false);
   readonly loadFailed = signal(false);
   readonly saving = signal(false);
   readonly formMode = signal<CategoryFormMode>(null);
@@ -608,6 +666,12 @@ export class CategoriesComponent {
   private editingCategory: Category | null = null;
 
   constructor() {
+    const path = this.route.snapshot.routeConfig?.path;
+    if (path === 'categories/new') {
+      this.formMode.set('create');
+    } else if (path === 'categories/:id/edit') {
+      this.formMode.set('edit');
+    }
     this.loadCategories();
     this.loadWallets();
   }
@@ -655,9 +719,19 @@ export class CategoriesComponent {
   }
 
   closeForm(): void {
+    const routePath = this.route.snapshot.routeConfig?.path;
+    if (routePath === 'categories/new' || routePath === 'categories/:id/edit') {
+      void this.router.navigateByUrl('/categories');
+      return;
+    }
     this.formMode.set(null);
     this.editingCategory = null;
     this.selectedWalletIds.set([]);
+  }
+
+  retryFormLoad(): void {
+    this.loadCategories();
+    this.loadWallets();
   }
 
   toggleWalletAssignment(walletId: string, checked: boolean): void {
@@ -804,7 +878,23 @@ export class CategoriesComponent {
         finalize(() => this.loading.set(false)),
       )
       .subscribe({
-        next: (categories) => this.categories.set(categories),
+        next: (categories) => {
+          this.categories.set(categories);
+          const id = this.route.snapshot.paramMap.get('id');
+          if (id) {
+            const category = categories.find((item) => item.id === id);
+            if (category && this.canManage(category)) {
+              this.openEdit(category);
+            } else {
+              this.loadFailed.set(true);
+              this.errorKey.set(
+                category ? 'categories.systemReadOnly' : 'categories.notFound',
+              );
+            }
+          } else if (this.formMode() === 'create') {
+            this.openCreate();
+          }
+        },
         error: (error: unknown) => {
           this.loadFailed.set(true);
           this.errorKey.set(this.getErrorKey(error, 'load'));
@@ -813,12 +903,20 @@ export class CategoriesComponent {
   }
 
   loadWallets(): void {
+    this.walletsLoading.set(true);
+    this.walletsLoadFailed.set(false);
     this.api
       .getWallets()
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.walletsLoading.set(false)),
+      )
       .subscribe({
         next: (wallets) => this.wallets.set(wallets),
-        error: () => this.wallets.set([]),
+        error: () => {
+          this.walletsLoadFailed.set(true);
+          this.errorKey.set('categories.loadError');
+        },
       });
   }
 

@@ -29,6 +29,20 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'transactions/new',
+        loadComponent: () =>
+          import('./features/transactions/transaction-form.component').then(
+            (module) => module.TransactionFormComponent,
+          ),
+      },
+      {
+        path: 'transactions/:id/edit',
+        loadComponent: () =>
+          import('./features/transactions/transaction-form.component').then(
+            (module) => module.TransactionFormComponent,
+          ),
+      },
+      {
         path: 'account',
         loadComponent: () =>
           import('./features/account/account.component').then(
@@ -43,7 +57,35 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'wallets/new',
+        loadComponent: () =>
+          import('./features/wallets/wallets.component').then(
+            (module) => module.WalletsComponent,
+          ),
+      },
+      {
+        path: 'wallets/:id/edit',
+        loadComponent: () =>
+          import('./features/wallets/wallets.component').then(
+            (module) => module.WalletsComponent,
+          ),
+      },
+      {
         path: 'categories',
+        loadComponent: () =>
+          import('./features/categories/categories.component').then(
+            (module) => module.CategoriesComponent,
+          ),
+      },
+      {
+        path: 'categories/new',
+        loadComponent: () =>
+          import('./features/categories/categories.component').then(
+            (module) => module.CategoriesComponent,
+          ),
+      },
+      {
+        path: 'categories/:id/edit',
         loadComponent: () =>
           import('./features/categories/categories.component').then(
             (module) => module.CategoriesComponent,

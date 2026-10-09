@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { CreateWalletRequest, UpdateWalletRequest, Wallet } from '../../core/api.models';
 import { LanguageService, TranslationKey } from '../../core/language.service';
@@ -11,29 +12,44 @@ type WalletFormMode = 'create' | 'edit' | null;
 
 @Component({
   selector: 'app-wallets',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   template: `
     <section class="wallets-page">
-      <header class="page-heading">
-        <div>
-          <p class="eyebrow">{{ language.t('wallets.eyebrow') }}</p>
-          <h1>{{ language.t('wallets.title') }}</h1>
-          <p class="subtitle">{{ language.t('wallets.subtitle') }}</p>
-        </div>
-        @if (!formMode()) {
-          <button class="primary-button" type="button" (click)="openCreate()">
+      @if (formMode()) {
+        <header class="form-page-heading">
+          <a class="back-link" routerLink="/wallets">← {{ language.t('wallets.cancel') }}</a>
+          <h1>{{ language.t(formMode() === 'create' ? 'wallets.add' : 'wallets.edit') }}</h1>
+        </header>
+      } @else {
+        <header class="page-heading">
+          <div>
+            <p class="eyebrow">{{ language.t('wallets.eyebrow') }}</p>
+            <h1>{{ language.t('wallets.title') }}</h1>
+            <p class="subtitle">{{ language.t('wallets.subtitle') }}</p>
+          </div>
+          <a class="primary-button" routerLink="/wallets/new">
             <span aria-hidden="true">+</span> {{ language.t('wallets.add') }}
-          </button>
-        }
-      </header>
+          </a>
+        </header>
+      }
 
-      @if (errorKey()) {
+      @if (errorKey() && !formMode()) {
         <p class="error-message" role="alert">{{ language.t(errorKey()!) }}</p>
       }
 
       @if (formMode()) {
-        <form class="wallet-form" [formGroup]="form" (ngSubmit)="save()">
-          <h2>{{ language.t(formMode() === 'create' ? 'wallets.add' : 'wallets.edit') }}</h2>
+        @if (loading()) {
+          <p class="status-message" role="status">{{ language.t('transactions.loading') }}</p>
+        } @else if (loadFailed()) {
+          <p class="error-message" role="alert">{{ language.t(errorKey()!) }}</p>
+          <button class="secondary-button retry-button" type="button" (click)="loadWallets()">
+            {{ language.t('wallets.loadRetry') }}
+          </button>
+        } @else {
+          <form class="wallet-form" [formGroup]="form" (ngSubmit)="save()">
+          @if (errorKey()) {
+            <p class="error-message" role="alert">{{ language.t(errorKey()!) }}</p>
+          }
           <div class="form-grid">
             <label class="field">
               <span>{{ language.t('wallets.name') }}</span>
@@ -122,10 +138,10 @@ type WalletFormMode = 'create' | 'edit' | null;
               {{ language.t(saving() ? 'wallets.saving' : 'wallets.save') }}
             </button>
           </div>
-        </form>
-      }
+          </form>
+        }
 
-      @if (loading()) {
+      } @else if (loading()) {
         <p class="status-message" role="status">{{ language.t('transactions.loading') }}</p>
       } @else if (loadFailed()) {
         <button class="secondary-button retry-button" type="button" (click)="loadWallets()">
@@ -136,48 +152,45 @@ type WalletFormMode = 'create' | 'edit' | null;
           <span class="empty-icon" aria-hidden="true">▰</span>
           <h2>{{ language.t('wallets.emptyTitle') }}</h2>
           <p>{{ language.t('wallets.emptyDescription') }}</p>
-          @if (!formMode()) {
-            <button class="primary-button" type="button" (click)="openCreate()">
-              {{ language.t('wallets.add') }}
-            </button>
-          }
+          <a class="primary-button" routerLink="/wallets/new">{{ language.t('wallets.add') }}</a>
         </section>
       } @else {
         <section class="wallet-list" [attr.aria-label]="language.t('wallets.title')">
           @for (wallet of wallets(); track wallet.id) {
             <article class="wallet-card">
-              <div class="wallet-heading">
-                <span
-                  class="wallet-icon"
-                  [style.background-color]="wallet.color || null"
-                  aria-hidden="true"
-                  >{{ wallet.icon || '▰' }}</span
-                >
-                <div class="wallet-identity">
-                  <h2>{{ wallet.name }}</h2>
-                  <span class="wallet-type">{{
-                    language.t(
-                      wallet.type === 'Credit'
-                        ? 'wallets.creditDescription'
-                        : 'wallets.regularDescription'
-                    )
-                  }}</span>
-                </div>
-                <span class="currency-badge">{{ wallet.currency }}</span>
-              </div>
-
-              <div class="wallet-details">
-                <div>
-                  <span>{{ language.t('wallets.openingBalanceSummary') }}</span>
-                  <strong>{{ formatAmount(wallet.initialBalance, wallet.currency) }}</strong>
-                </div>
-                @if (wallet.type === 'Credit' && wallet.creditLimit !== null) {
-                  <div>
-                    <span>{{ language.t('wallets.creditLimitSummary') }}</span>
-                    <strong>{{ formatAmount(wallet.creditLimit, wallet.currency) }}</strong>
+                <a class="wallet-edit-link" [routerLink]="['/wallets', wallet.id, 'edit']">
+                  <div class="wallet-heading">
+                    <span
+                      class="wallet-icon"
+                      [style.background-color]="wallet.color || null"
+                      aria-hidden="true"
+                      >{{ wallet.icon || '▰' }}</span
+                    >
+                    <div class="wallet-identity">
+                      <h2>{{ wallet.name }}</h2>
+                      <span class="wallet-type">{{
+                        language.t(
+                          wallet.type === 'Credit'
+                            ? 'wallets.creditDescription'
+                            : 'wallets.regularDescription'
+                        )
+                      }}</span>
+                    </div>
+                    <span class="currency-badge">{{ wallet.currency }}</span>
                   </div>
-                }
-              </div>
+                  <div class="wallet-details">
+                    <div>
+                      <span>{{ language.t('wallets.openingBalanceSummary') }}</span>
+                      <strong>{{ formatAmount(wallet.initialBalance, wallet.currency) }}</strong>
+                    </div>
+                    @if (wallet.type === 'Credit' && wallet.creditLimit !== null) {
+                      <div>
+                        <span>{{ language.t('wallets.creditLimitSummary') }}</span>
+                        <strong>{{ formatAmount(wallet.creditLimit, wallet.currency) }}</strong>
+                      </div>
+                    }
+                  </div>
+                </a>
 
               @if (confirmDeleteId() === wallet.id) {
                 <div class="delete-confirmation" role="alert">
@@ -201,9 +214,6 @@ type WalletFormMode = 'create' | 'edit' | null;
                 </div>
               } @else {
                 <div class="card-actions">
-                  <button class="text-button" type="button" (click)="openEdit(wallet)">
-                    {{ language.t('wallets.edit') }}
-                  </button>
                   <button
                     class="text-button danger-text"
                     type="button"
@@ -232,6 +242,35 @@ type WalletFormMode = 'create' | 'edit' | null;
       align-items: flex-end;
       justify-content: space-between;
       gap: 14px;
+    }
+    .form-page-heading {
+      display: grid;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .form-page-heading h1 {
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+    .back-link,
+    .wallet-edit-link {
+      color: inherit;
+      text-decoration: none;
+    }
+    .back-link {
+      width: fit-content;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .wallet-edit-link {
+      display: grid;
+      gap: 15px;
+      border-radius: 3px;
+    }
+    .wallet-edit-link:focus-visible {
+      outline: 1px solid var(--green);
+      outline-offset: 3px;
     }
     .eyebrow {
       margin: 0 0 7px;
@@ -542,6 +581,8 @@ type WalletFormMode = 'create' | 'edit' | null;
 export class WalletsComponent {
   private readonly api = inject(MoneyApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   readonly language = inject(LanguageService);
   readonly wallets = signal<Wallet[]>([]);
   readonly loading = signal(true);
@@ -573,6 +614,12 @@ export class WalletsComponent {
   private editingWallet: Wallet | null = null;
 
   constructor() {
+    const path = this.route.snapshot.routeConfig?.path;
+    if (path === 'wallets/new') {
+      this.formMode.set('create');
+    } else if (path === 'wallets/:id/edit') {
+      this.formMode.set('edit');
+    }
     this.loadWallets();
   }
 
@@ -609,6 +656,11 @@ export class WalletsComponent {
   }
 
   closeForm(): void {
+    const routePath = this.route.snapshot.routeConfig?.path;
+    if (routePath === 'wallets/new' || routePath === 'wallets/:id/edit') {
+      void this.router.navigateByUrl('/wallets');
+      return;
+    }
     this.formMode.set(null);
     this.editingWallet = null;
   }
@@ -753,7 +805,21 @@ export class WalletsComponent {
         finalize(() => this.loading.set(false)),
       )
       .subscribe({
-        next: (wallets) => this.wallets.set(wallets),
+        next: (wallets) => {
+          this.wallets.set(wallets);
+          const id = this.route.snapshot.paramMap.get('id');
+          if (id) {
+            const wallet = wallets.find((item) => item.id === id);
+            if (wallet) {
+              this.openEdit(wallet);
+            } else {
+              this.loadFailed.set(true);
+              this.errorKey.set('wallets.notFound');
+            }
+          } else if (this.formMode() === 'create') {
+            this.openCreate();
+          }
+        },
         error: (error: unknown) => {
           this.loadFailed.set(true);
           this.errorKey.set(this.getErrorKey(error, 'load'));

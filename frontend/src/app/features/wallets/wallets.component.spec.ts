@@ -1,11 +1,17 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router, RouterOutlet } from '@angular/router';
 import { Wallet } from '../../core/api.models';
 import { WalletsComponent } from './wallets.component';
 
+@Component({ standalone: true, imports: [RouterOutlet], template: '<router-outlet />' })
+class RouterHostComponent {}
+
 describe('WalletsComponent', () => {
   let http: HttpTestingController;
+  let router: Router;
 
   const makeWallet = (overrides: Partial<Wallet> = {}): Wallet => ({
     id: 'wallet-1',
@@ -23,9 +29,18 @@ describe('WalletsComponent', () => {
     localStorage.removeItem('money-tracker.language');
     TestBed.configureTestingModule({
       imports: [WalletsComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([
+          { path: 'wallets', component: WalletsComponent },
+          { path: 'wallets/new', component: WalletsComponent },
+          { path: 'wallets/:id/edit', component: WalletsComponent },
+        ]),
+      ],
     });
     http = TestBed.inject(HttpTestingController);
+    router = TestBed.inject(Router);
   });
 
   afterEach(() => http.verify());
@@ -52,6 +67,41 @@ describe('WalletsComponent', () => {
     expect(page.textContent).toContain('Travel card');
     expect(page.textContent).toContain('Credit limit');
     expect(page.textContent).toContain('5,000,000 VND');
+  });
+
+  it('opens a wallet edit screen from the card content and removes the edit button', async () => {
+    const fixture = TestBed.createComponent(RouterHostComponent);
+    await router.navigateByUrl('/wallets');
+    fixture.detectChanges();
+    http.expectOne('/api/wallets').flush([makeWallet()]);
+    fixture.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('.wallet-edit-link') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/wallets/wallet-1/edit');
+    expect(fixture.nativeElement.querySelector('.card-actions').textContent).not.toContain('Edit');
+
+    link.click();
+    await fixture.whenStable();
+    expect(router.url).toBe('/wallets/wallet-1/edit');
+    http.expectOne('/api/wallets').flush([makeWallet()]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.wallet-form')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.wallet-list')).toBeNull();
+  });
+
+  it('opens wallet creation as a dedicated screen', async () => {
+    const fixture = TestBed.createComponent(RouterHostComponent);
+    await router.navigateByUrl('/wallets/new');
+    fixture.detectChanges();
+    http.expectOne('/api/wallets').flush([]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.wallet-form')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.wallet-list')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.form-page-heading h1').textContent).toContain(
+      'Add wallet',
+    );
   });
 
   it('creates a wallet with a client-generated ID and its credit limit', () => {

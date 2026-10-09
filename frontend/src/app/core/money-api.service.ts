@@ -29,6 +29,10 @@ export class MoneyApiService {
     return this.http.get<Transaction[]>('/api/transactions', { params });
   }
 
+  getTransaction(id: string): Observable<Transaction> {
+    return this.http.get<Transaction>(`/api/transactions/${id}`);
+  }
+
   createTransaction(request: CreateTransactionRequest): Observable<Transaction> {
     return this.http.post<Transaction>('/api/transactions', request);
   }

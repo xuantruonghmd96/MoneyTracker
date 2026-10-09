@@ -5,6 +5,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, RouterOutlet } from '@angular/router';
 import { Category, Transaction, Wallet } from '../../core/api.models';
 import { LanguageService } from '../../core/language.service';
+import { TransactionFormComponent } from './transaction-form.component';
 import { TransactionsComponent } from './transactions.component';
 import { TransactionsViewState } from './transactions-view-state.service';
 import { getPeriodBounds } from './period';
@@ -35,6 +36,8 @@ describe('TransactionsComponent', () => {
           { path: '', component: TransactionsComponent },
           { path: 'categories', component: ReportRouteStub },
           { path: 'report', component: ReportRouteStub },
+          { path: 'transactions/:id/edit', component: ReportRouteStub },
+          { path: 'transactions/new', component: TransactionFormComponent },
         ]),
       ],
     });
@@ -83,6 +86,42 @@ describe('TransactionsComponent', () => {
     await fixture.whenStable();
 
     expect(TestBed.inject(Router).url).toBe('/report');
+  });
+
+  it('opens a transaction edit screen from the row and has no edit button', async () => {
+    const fixture = TestBed.createComponent(RouterHostStub);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/');
+    fixture.detectChanges();
+
+    const transaction: Transaction = {
+      id: 'transaction-1',
+      amount: 125,
+      occurredAt: new Date().toISOString(),
+      categoryId: 'category-1',
+      walletId: 'wallet-1',
+      participantId: null,
+      note: 'Lunch',
+    };
+    http.expectOne((request) => request.url === '/api/transactions').flush([transaction]);
+    http.expectOne('/api/categories').flush([
+      { id: 'category-1', name: 'Food', type: 'Expense', parentId: null, appliesToAllWallets: true, icon: null, color: null, isSystem: false, systemKey: null },
+    ]);
+    http.expectOne('/api/wallets').flush([
+      { id: 'wallet-1', name: 'Cash', type: 'Regular', creditLimit: null, initialBalance: 0, currency: 'VND', icon: null, color: null },
+    ]);
+    fixture.detectChanges();
+
+    const editLink = fixture.nativeElement.querySelector(
+      '.transaction-row',
+    ) as HTMLAnchorElement;
+    expect(editLink.getAttribute('href')).toBe('/transactions/transaction-1/edit');
+    expect(fixture.nativeElement.querySelector('.transaction-actions button').textContent.trim())
+      .not.toBe('Edit');
+
+    editLink.click();
+    await fixture.whenStable();
+    expect(router.url).toBe('/transactions/transaction-1/edit');
   });
 
   it('preserves the selected period and scrolls it into view when returning from another route', async () => {
@@ -563,228 +602,6 @@ describe('TransactionsComponent', () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
-  it('creates a transaction and reloads the selected period', () => {
-    const fixture = TestBed.createComponent(TransactionsComponent);
-    fixture.detectChanges();
-
-    http.expectOne((request) => request.url === '/api/transactions').flush([]);
-    http.expectOne('/api/categories').flush([
-      { id: 'category-1', name: 'Food', type: 'Expense', parentId: null, appliesToAllWallets: true, icon: null, color: null, isSystem: false, systemKey: null },
-    ]);
-    http.expectOne('/api/wallets').flush([
-      { id: 'wallet-1', name: 'Cash', type: 'Regular', creditLimit: null, initialBalance: 0, currency: 'VND', icon: null, color: null },
-    ]);
-    fixture.detectChanges();
-
-    const component = fixture.componentInstance;
-    component.openCreate();
-    http.expectOne('/api/participants').flush([
-      { id: 'participant-1', name: 'Someone', note: null, isDefault: true },
-    ]);
-    component.form.setValue({
-      amount: 125,
-      occurredAt: '2026-10-09T10:30',
-      walletId: 'wallet-1',
-      categoryId: 'category-1',
-      participantId: null,
-      note: 'Lunch',
-    });
-    component.saveTransaction();
-
-    const createRequest = http.expectOne({ method: 'POST', url: '/api/transactions' });
-    expect(createRequest.request.body).toMatchObject({
-      amount: 125,
-      occurredAt: new Date('2026-10-09T10:30').toISOString(),
-      walletId: 'wallet-1',
-      categoryId: 'category-1',
-      participantId: null,
-      note: 'Lunch',
-    });
-    expect(createRequest.request.body.id).toEqual(expect.any(String));
-    createRequest.flush({
-      id: 'transaction-1',
-      amount: 125,
-      occurredAt: '2026-10-09T10:30:00.000Z',
-      categoryId: 'category-1',
-      walletId: 'wallet-1',
-      participantId: null,
-      note: 'Lunch',
-    });
-    expect(component.formMode()).toBeNull();
-    http.expectOne((request) => request.url === '/api/transactions').flush([]);
-    http.expectOne('/api/categories').flush([]);
-    http.expectOne('/api/wallets').flush([]);
-  });
-
-  it('initializes a new transaction with the current local date and time', () => {
-    const fixture = TestBed.createComponent(TransactionsComponent);
-    const component = fixture.componentInstance;
-    const beforeOpen = new Date();
-    component.openCreate();
-    const afterOpen = new Date();
-    http.expectOne('/api/participants').flush([]);
-
-    const initialized = new Date(component.form.controls.occurredAt.value);
-    expect(initialized.getTime()).toBeGreaterThanOrEqual(
-      new Date(beforeOpen.getFullYear(), beforeOpen.getMonth(), beforeOpen.getDate()).getTime(),
-    );
-    expect(initialized.getTime()).toBeLessThanOrEqual(afterOpen.getTime());
-    expect(initialized.getHours()).toBe(afterOpen.getHours());
-    expect(initialized.getMinutes()).toBe(afterOpen.getMinutes());
-  });
-
-  it('opens the create form when requested from the navigation bar', () => {
-    const fixture = TestBed.createComponent(TransactionsComponent);
-    fixture.detectChanges();
-
-    http.expectOne((request) => request.url === '/api/transactions').flush([]);
-    http.expectOne('/api/categories').flush([]);
-    http.expectOne('/api/wallets').flush([]);
-
-    TestBed.inject(TransactionsViewState).requestCreateTransaction();
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance.formMode()).toBe('create');
-    expect(fixture.nativeElement.querySelector('.transaction-dialog-backdrop')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('.transaction-form').getAttribute('role')).toBe('dialog');
-    expect(fixture.nativeElement.querySelector('.transaction-form')).not.toBeNull();
-    http.expectOne('/api/participants').flush([]);
-
-    fixture.destroy();
-    const reopenedFixture = TestBed.createComponent(TransactionsComponent);
-    reopenedFixture.detectChanges();
-    http.expectOne((request) => request.url === '/api/transactions').flush([]);
-    http.expectOne('/api/categories').flush([]);
-    http.expectOne('/api/wallets').flush([]);
-    reopenedFixture.detectChanges();
-
-    expect(reopenedFixture.componentInstance.formMode()).toBeNull();
-    expect(reopenedFixture.nativeElement.querySelector('.transaction-dialog-backdrop')).toBeNull();
-  });
-
-  it('filters create categories to the selected wallet assignments', () => {
-    const fixture = TestBed.createComponent(TransactionsComponent);
-    fixture.detectChanges();
-    http.expectOne((request) => request.url === '/api/transactions').flush([]);
-    http.expectOne('/api/categories').flush([
-      { id: 'cash-only', name: 'Cash only', type: 'Expense', parentId: null, appliesToAllWallets: false, icon: null, color: null, isSystem: false, systemKey: null },
-      { id: 'travel-only', name: 'Travel only', type: 'Expense', parentId: null, appliesToAllWallets: false, icon: null, color: null, isSystem: false, systemKey: null },
-      { id: 'everywhere', name: 'Everywhere', type: 'Expense', parentId: null, appliesToAllWallets: true, icon: null, color: null, isSystem: false, systemKey: null },
-    ]);
-    http.expectOne('/api/wallets').flush([
-      { id: 'cash', name: 'Cash', type: 'Regular', creditLimit: null, initialBalance: 0, currency: 'VND', icon: null, color: null },
-      { id: 'travel', name: 'Travel', type: 'Regular', creditLimit: null, initialBalance: 0, currency: 'VND', icon: null, color: null },
-    ]);
-
-    const component = fixture.componentInstance;
-    component.openCreate();
-    http.expectOne('/api/participants').flush([]);
-    http.expectOne('/api/categories/cash-only/wallets').flush(['cash']);
-    http.expectOne('/api/categories/travel-only/wallets').flush(['travel']);
-    fixture.detectChanges();
-
-    expect(component.selectableCategories().map(({ id }) => id)).toEqual(['cash-only', 'everywhere']);
-    expect(component.form.controls.categoryId.value).toBe('cash-only');
-
-    component.form.controls.walletId.setValue('travel');
-    fixture.detectChanges();
-    expect(component.selectableCategories().map(({ id }) => id)).toEqual(['travel-only', 'everywhere']);
-    expect(component.form.controls.categoryId.value).toBe('travel-only');
-    const categoryOptions = [...fixture.nativeElement.querySelectorAll('.transaction-field select[formControlName="categoryId"] option')]
-      .map((option: HTMLOptionElement) => option.value);
-    expect(categoryOptions).toEqual(['', 'travel-only', 'everywhere']);
-  });
-
-  it('shifts the transaction date by one day while preserving its time', () => {
-    const fixture = TestBed.createComponent(TransactionsComponent);
-    const component = fixture.componentInstance;
-    component.form.controls.occurredAt.setValue('2026-10-09T14:35');
-
-    component.shiftOccurredAtDay(-1);
-    expect(component.form.controls.occurredAt.value).toBe('2026-10-08T14:35');
-
-    component.shiftOccurredAtDay(1);
-    component.shiftOccurredAtDay(1);
-    expect(component.form.controls.occurredAt.value).toBe('2026-10-10T14:35');
-  });
-
-  it('closes the transaction form for controls outside the form, keeping form clicks inside', () => {
-    const fixture = TestBed.createComponent(TransactionsComponent);
-    fixture.detectChanges();
-    http.expectOne((request) => request.url === '/api/transactions').flush([]);
-    http.expectOne('/api/categories').flush([]);
-    http.expectOne('/api/wallets').flush([]);
-
-    const component = fixture.componentInstance;
-    component.openCreate();
-    http.expectOne('/api/participants').flush([]);
-    fixture.detectChanges();
-
-    fixture.nativeElement
-      .querySelector('.transaction-form input')
-      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(component.formMode()).toBe('create');
-
-    const otherControl = document.createElement('button');
-    document.body.append(otherControl);
-    otherControl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    otherControl.remove();
-    expect(component.formMode()).toBeNull();
-
-    component.openCreate();
-    http.expectOne('/api/participants').flush([]);
-    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(component.formMode()).toBeNull();
-  });
-
-  it('updates a transaction without a confirmation step and reloads the selected period', () => {
-    const fixture = TestBed.createComponent(TransactionsComponent);
-    fixture.detectChanges();
-    const transaction: Transaction = {
-      id: 'transaction-1',
-      amount: 125,
-      occurredAt: new Date().toISOString(),
-      categoryId: 'category-1',
-      walletId: 'wallet-1',
-      participantId: null,
-      note: 'Old note',
-    };
-    http.expectOne((request) => request.url === '/api/transactions').flush([transaction]);
-    http.expectOne('/api/categories').flush([
-      { id: 'category-1', name: 'Food', type: 'Expense', parentId: null, appliesToAllWallets: true, icon: null, color: null, isSystem: false, systemKey: null },
-    ]);
-    http.expectOne('/api/wallets').flush([
-      { id: 'wallet-1', name: 'Cash', type: 'Regular', creditLimit: null, initialBalance: 0, currency: 'VND', icon: null, color: null },
-    ]);
-
-    const component = fixture.componentInstance;
-    component.openEdit(transaction);
-    http.expectOne('/api/participants').flush([]);
-    expect(fixture.nativeElement.querySelector('.transaction-delete-confirmation')).toBeNull();
-    component.form.setValue({
-      amount: 200,
-      occurredAt: '2026-10-09T11:00',
-      walletId: 'wallet-1',
-      categoryId: 'category-1',
-      participantId: null,
-      note: 'Updated note',
-    });
-    component.saveTransaction();
-
-    const updateRequest = http.expectOne({ method: 'PUT', url: '/api/transactions/transaction-1' });
-    expect(updateRequest.request.body).toMatchObject({
-      amount: 200,
-      walletId: 'wallet-1',
-      categoryId: 'category-1',
-      note: 'Updated note',
-    });
-    expect(updateRequest.request.body.id).toBeUndefined();
-    updateRequest.flush({ ...transaction, amount: 200, note: 'Updated note' });
-    http.expectOne((request) => request.url === '/api/transactions').flush([]);
-    http.expectOne('/api/categories').flush([]);
-    http.expectOne('/api/wallets').flush([]);
-  });
-
   it('requires explicit confirmation before deleting a transaction', () => {
     const fixture = TestBed.createComponent(TransactionsComponent);
     fixture.detectChanges();
@@ -806,8 +623,10 @@ describe('TransactionsComponent', () => {
     ]);
     fixture.detectChanges();
 
-    const row = fixture.nativeElement.querySelector('.transaction-row') as HTMLElement;
-    (row.querySelector('.transaction-actions button:last-child') as HTMLButtonElement).click();
+    const deleteButton = fixture.nativeElement.querySelector(
+      '.transaction-actions button',
+    ) as HTMLButtonElement;
+    deleteButton.click();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.transaction-delete-confirmation')).not.toBeNull();
     expect(http.match({ method: 'DELETE', url: '/api/transactions/transaction-1' })).toHaveLength(0);
@@ -822,58 +641,6 @@ describe('TransactionsComponent', () => {
     http.expectOne((request) => request.url === '/api/transactions').flush([]);
     http.expectOne('/api/categories').flush([]);
     http.expectOne('/api/wallets').flush([]);
-  });
-
-  it('keeps the form open and displays an error when saving fails', () => {
-    const fixture = TestBed.createComponent(TransactionsComponent);
-    fixture.detectChanges();
-    http.expectOne((request) => request.url === '/api/transactions').flush([]);
-    http.expectOne('/api/categories').flush([
-      {
-        id: 'category-1',
-        name: 'Food',
-        type: 'Expense',
-        parentId: null,
-        appliesToAllWallets: true,
-        icon: null,
-        color: null,
-        isSystem: false,
-        systemKey: null,
-      },
-    ]);
-    http.expectOne('/api/wallets').flush([
-      {
-        id: 'wallet-1',
-        name: 'Cash',
-        type: 'Regular',
-        creditLimit: null,
-        initialBalance: 0,
-        currency: 'VND',
-        icon: null,
-        color: null,
-      },
-    ]);
-
-    const component = fixture.componentInstance;
-    component.openCreate();
-    http.expectOne('/api/participants').flush([]);
-    component.form.setValue({
-      amount: 125,
-      occurredAt: new Date().toISOString().slice(0, 16),
-      walletId: 'wallet-1',
-      categoryId: 'category-1',
-      participantId: null,
-      note: 'Lunch',
-    });
-    component.saveTransaction();
-
-    http.expectOne({ method: 'POST', url: '/api/transactions' }).flush(
-      { error: 'VALIDATION_FAILED' },
-      { status: 400, statusText: 'Bad Request' },
-    );
-
-    expect(component.formMode()).toBe('create');
-    expect(component.saveError()).toBe('transactions.errorSave');
   });
 
 });
