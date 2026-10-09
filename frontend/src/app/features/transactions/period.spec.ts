@@ -66,6 +66,40 @@ describe('period utilities', () => {
     expect(formatNavigationPeriodLabel(current, 'Quarter', current)).toBe('IV-2026');
   });
 
+  it('formats Vietnamese period labels and relative period names', () => {
+    const translations = {
+      today: 'Hôm nay',
+      yesterday: 'Hôm qua',
+      day: 'ngày',
+      week: 'tuần',
+      month: 'tháng',
+      year: 'năm',
+      thisPeriod: '{period} này',
+      lastPeriod: '{period} trước',
+      quarter: 'Quý {quarter} năm {year}',
+      navigationQuarter: 'Quý {quarter} năm {year}',
+    };
+    const current = new Date(2026, 9, 8);
+
+    expect(formatNavigationPeriodLabel(current, 'Day', current, false, 'vi-VN', translations)).toBe(
+      'Hôm nay',
+    );
+    expect(
+      formatNavigationPeriodLabel(
+        movePeriod(current, 'Month', -1),
+        'Month',
+        current,
+        false,
+        'vi-VN',
+        translations,
+      ),
+    ).toBe('tháng trước');
+    expect(formatPeriodLabel(current, 'Month', false, 'vi-VN', translations)).toContain('tháng 10');
+    expect(formatPeriodLabel(current, 'Quarter', false, 'vi-VN', translations)).toBe(
+      'Quý 4 năm 2026',
+    );
+  });
+
   it('moves to the adjacent period without skipping a day', () => {
     expect(movePeriod(new Date(2026, 9, 8), 'Day', 1)).toEqual(new Date(2026, 9, 9));
     expect(movePeriod(new Date(2026, 9, 8), 'Week', -1)).toEqual(new Date(2026, 8, 28));

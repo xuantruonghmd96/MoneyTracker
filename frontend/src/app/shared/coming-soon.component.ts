@@ -1,22 +1,23 @@
 import { Component, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { LanguageService, TranslationKey } from '../core/language.service';
 
-const FEATURE_COPY: Record<string, { title: string; detail: string }> = {
+const FEATURE_COPY: Record<string, { title: TranslationKey; detail: TranslationKey }> = {
   categories: {
-    title: 'Categories',
-    detail: 'Organize your spending and income with categories.',
+    title: 'coming.categoriesTitle',
+    detail: 'coming.categoriesDetail',
   },
   report: {
-    title: 'Reports',
-    detail: 'Explore a deeper breakdown of your finances.',
+    title: 'coming.reportsTitle',
+    detail: 'coming.reportsDetail',
   },
   account: {
-    title: 'Your account',
-    detail: 'Manage your profile and preferences.',
+    title: 'coming.accountTitle',
+    detail: 'coming.accountDetail',
   },
   'add-transaction': {
-    title: 'Add a transaction',
-    detail: 'Transaction creation is coming in a later stage.',
+    title: 'coming.transactionTitle',
+    detail: 'coming.transactionDetail',
   },
 };
 
@@ -26,10 +27,10 @@ const FEATURE_COPY: Record<string, { title: string; detail: string }> = {
   template: `
     <section class="placeholder">
       <span class="placeholder-icon" aria-hidden="true">✳</span>
-      <p class="eyebrow">COMING IN A LATER STAGE</p>
-      <h1>{{ feature.title }}</h1>
-      <p class="placeholder-copy">{{ feature.detail }}</p>
-      <a routerLink="/">Back to transactions <span aria-hidden="true">→</span></a>
+      <p class="eyebrow">{{ language.t('coming.eyebrow') }}</p>
+      <h1>{{ language.t(feature.title) }}</h1>
+      <p class="placeholder-copy">{{ language.t(feature.detail) }}</p>
+      <a routerLink="/">{{ language.t('coming.backToTransactions') }} <span aria-hidden="true">→</span></a>
     </section>
   `,
   styles: `
@@ -81,7 +82,8 @@ const FEATURE_COPY: Record<string, { title: string; detail: string }> = {
   `,
 })
 export class ComingSoonComponent {
-  readonly feature: { title: string; detail: string };
+  readonly language = inject(LanguageService);
+  readonly feature: { title: TranslationKey; detail: TranslationKey };
 
   constructor() {
     const key = inject(ActivatedRoute).snapshot.data['feature'] as string;

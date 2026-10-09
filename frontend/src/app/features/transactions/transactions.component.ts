@@ -15,10 +15,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of, Subject, switchMap, tap } from 'rxjs';
 import { Category, CategoryType, Transaction, Wallet } from '../../core/api.models';
+import { LanguageService, TranslationKey } from '../../core/language.service';
 import { MoneyApiService } from '../../core/money-api.service';
 import {
   PeriodDirection,
   PeriodType,
+  PeriodTranslations,
   formatPeriodLabel,
   formatNavigationPeriodLabel,
   getPeriodBounds,
@@ -44,6 +46,13 @@ interface PeriodOption {
 }
 
 const PERIOD_TYPES: PeriodType[] = ['Day', 'Week', 'Month', 'Quarter', 'Year'];
+const PERIOD_TYPE_TRANSLATION_KEYS: Record<PeriodType, TranslationKey> = {
+  Day: 'period.typeDay',
+  Week: 'period.typeWeek',
+  Month: 'period.typeMonth',
+  Quarter: 'period.typeQuarter',
+  Year: 'period.typeYear',
+};
 const PERIODS_BEFORE_SELECTED = 31;
 const PERIOD_LOAD_THRESHOLD = 100;
 const SWIPE_THRESHOLD = 55;
@@ -58,6 +67,7 @@ const FUTURE_RANGE_END = new Date(Date.UTC(9999, 11, 31, 23, 59, 59, 999));
 export class TransactionsComponent implements OnInit, AfterViewInit {
   private readonly api = inject(MoneyApiService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly language = inject(LanguageService);
   private readonly periodRequests = new Subject<PeriodBoundsRequest>();
   private swipeStart: { x: number; y: number; pointerId: number } | null = null;
   private readonly periodsBeforeSelected = signal(PERIODS_BEFORE_SELECTED);
@@ -78,12 +88,23 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
   readonly categories = signal<Category[]>([]);
   readonly wallets = signal<Wallet[]>([]);
   readonly loading = signal(true);
-  readonly errorMessage = signal('');
+  private readonly errorKey = signal<TranslationKey | null>(null);
+  readonly errorMessage = computed(() => {
+    const key = this.errorKey();
+    return key ? this.language.t(key) : '';
+  });
 
   readonly periodTitle = computed(() =>
     this.futureSelected()
-      ? 'Future'
-      : formatNavigationPeriodLabel(this.selectedDate(), this.periodType(), new Date()),
+      ? this.language.t('transactions.future')
+      : formatNavigationPeriodLabel(
+          this.selectedDate(),
+          this.periodType(),
+          new Date(),
+          false,
+          this.language.locale(),
+          this.periodTranslations(),
+        ),
   );
   readonly periods = computed<PeriodOption[]>(() => {
     const selected = this.selectedDate();
@@ -110,12 +131,25 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
 
     const options = dates.map((date) => {
       const bounds = getPeriodBounds(date, type);
-      const label = formatNavigationPeriodLabel(date, type, referenceDate, true);
+      const label = formatNavigationPeriodLabel(
+        date,
+        type,
+        referenceDate,
+        true,
+        this.language.locale(),
+        this.periodTranslations(),
+      );
       return {
         date,
         key: bounds.start.toISOString(),
         label,
-        accessibleLabel: `${label}, ${formatPeriodLabel(date, type)}`,
+        accessibleLabel: `${label}, ${formatPeriodLabel(
+          date,
+          type,
+          false,
+          this.language.locale(),
+          this.periodTranslations(),
+        )}`,
         selected: !this.futureSelected() && bounds.start.getTime() === selectedStart.getTime(),
         isFuture: false,
       };
@@ -125,8 +159,8 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
     options.push({
       date: currentBounds.end,
       key: 'future',
-      label: 'Future',
-      accessibleLabel: 'Future period, all time after the current period',
+      label: this.language.t('transactions.future'),
+      accessibleLabel: this.language.t('transactions.futureAccessible'),
       selected: this.futureSelected(),
       isFuture: true,
     });
@@ -134,8 +168,11 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
   });
   readonly selectedWalletName = computed(() => {
     const walletId = this.selectedWalletId();
-    if (!walletId) return 'All wallets';
-    return this.wallets().find((wallet) => wallet.id === walletId)?.name ?? 'All wallets';
+    if (!walletId) return this.language.t('transactions.allWallets');
+    return (
+      this.wallets().find((wallet) => wallet.id === walletId)?.name ??
+      this.language.t('transactions.allWallets')
+    );
   });
   readonly openingBalance = computed(() => {
     const walletId = this.selectedWalletId();
@@ -185,7 +222,7 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
       .pipe(
         tap(() => {
           this.loading.set(true);
-          this.errorMessage.set('');
+          this.errorKey.set(null);
           this.transactions.set([]);
           this.categories.set([]);
           this.wallets.set([]);
@@ -200,7 +237,7 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
             wallets: this.api.getWallets(),
           }).pipe(
             catchError((error: unknown) => {
-              this.errorMessage.set(this.getLoadError(error));
+              this.errorKey.set(this.getLoadError(error));
               return of(null);
             }),
           ),
@@ -416,7 +453,10 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
   }
 
   categoryName(id: string): string {
-    return this.categories().find((category) => category.id === id)?.name ?? 'Other';
+    return (
+      this.categories().find((category) => category.id === id)?.name ??
+      this.language.t('transactions.categoryFallback')
+    );
   }
 
   categoryColor(id: string): string {
@@ -454,7 +494,23 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
   }
 
   formatMoney(amount: number): string {
-    return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(amount)} ₫`;
+    return this.formatWalletMoney(amount, 'VND');
+  }
+
+  formatWalletMoney(amount: number, currency: string): string {
+    return new Intl.NumberFormat(this.language.locale(), {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: currency === 'VND' ? 0 : 2,
+    }).format(amount);
+  }
+
+  walletCurrency(walletId: string): string {
+    return this.wallets().find((wallet) => wallet.id === walletId)?.currency ?? 'VND';
+  }
+
+  periodTypeLabel(type: PeriodType): string {
+    return this.language.t(PERIOD_TYPE_TRANSLATION_KEYS[type]);
   }
 
   private moveSelectedPeriod(direction: PeriodDirection): void {
@@ -514,18 +570,6 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
     });
   }
 
-  private formatWalletMoney(amount: number, currency: string): string {
-    try {
-      return new Intl.NumberFormat('vi-VN', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: currency === 'VND' ? 0 : 2,
-      }).format(amount);
-    } catch {
-      return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(amount)} ${currency}`;
-    }
-  }
-
   private transactionsForSelectedWallet(): Transaction[] {
     const walletId = this.selectedWalletId();
     return walletId
@@ -548,9 +592,9 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
         const date = new Date(transactions[0].occurredAt);
         return {
           key,
-          dayNumber: date.toLocaleDateString('en-US', { day: '2-digit' }),
-          weekday: date.toLocaleDateString('en-US', { weekday: 'long' }),
-          dateLabel: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          dayNumber: date.toLocaleDateString(this.language.locale(), { day: '2-digit' }),
+          weekday: date.toLocaleDateString(this.language.locale(), { weekday: 'long' }),
+          dateLabel: date.toLocaleDateString(this.language.locale(), { month: 'long', year: 'numeric' }),
           total: transactions.reduce((sum, transaction) => sum + this.transactionAmount(transaction), 0),
           transactions: [...transactions].sort(
             (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
@@ -560,11 +604,26 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
       .sort((a, b) => b.key.localeCompare(a.key));
   }
 
-  private getLoadError(error: unknown): string {
+  private getLoadError(error: unknown): TranslationKey {
     if (error instanceof HttpErrorResponse && error.status === 0) {
-      return 'Could not reach the API. Make sure it is running on localhost:5100.';
+      return 'transactions.errorOffline';
     }
-    return 'Your transactions could not be loaded. Please try again.';
+    return 'transactions.errorLoad';
+  }
+
+  private periodTranslations(): PeriodTranslations {
+    return {
+      today: this.language.t('period.today'),
+      yesterday: this.language.t('period.yesterday'),
+      day: this.language.t('period.day'),
+      week: this.language.t('period.week'),
+      month: this.language.t('period.month'),
+      year: this.language.t('period.year'),
+      thisPeriod: this.language.t('period.this'),
+      lastPeriod: this.language.t('period.last'),
+      quarter: this.language.t('period.quarter'),
+      navigationQuarter: this.language.t('period.navigationQuarter'),
+    };
   }
 }
 

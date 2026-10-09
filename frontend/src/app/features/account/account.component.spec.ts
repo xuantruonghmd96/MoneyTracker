@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
+import { LanguageService } from '../../core/language.service';
 import { AccountComponent } from './account.component';
 
 describe('AccountComponent', () => {
@@ -32,7 +33,13 @@ describe('AccountComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('alex@example.com');
-    fixture.nativeElement.querySelector('button').click();
+    fixture.nativeElement.querySelector('app-language-selector button:last-child').click();
+    fixture.detectChanges();
+
+    expect(TestBed.inject(LanguageService).language()).toBe('vi');
+    expect(fixture.nativeElement.textContent).toContain('Tài khoản');
+
+    fixture.nativeElement.querySelector('.session-card button').click();
     await fixture.whenStable();
 
     expect(logout).toHaveBeenCalledOnce();

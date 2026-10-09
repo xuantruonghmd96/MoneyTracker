@@ -6,6 +6,32 @@ export interface PeriodBounds {
   end: Date;
 }
 
+export interface PeriodTranslations {
+  today: string;
+  yesterday: string;
+  day: string;
+  week: string;
+  month: string;
+  year: string;
+  thisPeriod: string;
+  lastPeriod: string;
+  quarter: string;
+  navigationQuarter: string;
+}
+
+const ENGLISH_PERIOD_TRANSLATIONS: PeriodTranslations = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  day: 'day',
+  week: 'week',
+  month: 'month',
+  year: 'year',
+  thisPeriod: 'This {period}',
+  lastPeriod: 'Last {period}',
+  quarter: 'Q{quarter} {year}',
+  navigationQuarter: '{quarter}-{year}',
+};
+
 export function getPeriodBounds(anchor: Date, type: PeriodType): PeriodBounds {
   const year = anchor.getFullYear();
   const month = anchor.getMonth();
@@ -58,19 +84,30 @@ export function movePeriod(anchor: Date, type: PeriodType, direction: PeriodDire
   return start;
 }
 
-export function formatPeriodLabel(anchor: Date, type: PeriodType, short = false): string {
+export function formatPeriodLabel(
+  anchor: Date,
+  type: PeriodType,
+  short = false,
+  locale = 'en-US',
+  translations = ENGLISH_PERIOD_TRANSLATIONS,
+): string {
   const { start, end } = getPeriodBounds(anchor, type);
   const formatter = (date: Date, options: Intl.DateTimeFormatOptions) =>
-    date.toLocaleDateString('en-US', options);
+    date.toLocaleDateString(locale, options);
 
   switch (type) {
     case 'Day':
-      return formatter(start, short ? { month: 'short', day: 'numeric' } : {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      });
+      return formatter(
+        start,
+        short
+          ? { month: 'short', day: 'numeric' }
+          : {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
+            },
+      );
     case 'Week': {
       const lastDay = new Date(end);
       lastDay.setDate(lastDay.getDate() - 1);
@@ -85,12 +122,22 @@ export function formatPeriodLabel(anchor: Date, type: PeriodType, short = false)
           })}`;
     }
     case 'Month':
-      return formatter(start, short ? { month: 'short', year: '2-digit' } : {
-        month: 'long',
-        year: 'numeric',
-      });
+      return formatter(
+        start,
+        short
+          ? { month: 'short', year: '2-digit' }
+          : {
+              month: 'long',
+              year: 'numeric',
+            },
+      );
     case 'Quarter':
-      return `Q${Math.floor(start.getMonth() / 3) + 1}${short ? ` '${String(start.getFullYear()).slice(-2)}` : ` ${start.getFullYear()}`}`;
+      return translations.quarter
+        .replace('{quarter}', String(Math.floor(start.getMonth() / 3) + 1))
+        .replace(
+          '{year}',
+          short ? `'${String(start.getFullYear()).slice(-2)}` : String(start.getFullYear()),
+        );
     case 'Year':
       return String(start.getFullYear());
   }
@@ -101,30 +148,39 @@ export function formatNavigationPeriodLabel(
   type: PeriodType,
   referenceDate: Date,
   short = false,
+  locale = 'en-US',
+  translations = ENGLISH_PERIOD_TRANSLATIONS,
 ): string {
   const periodStart = getPeriodBounds(anchor, type).start;
   const currentStart = getPeriodBounds(referenceDate, type).start;
   const comparison = periodStart.getTime() - currentStart.getTime();
 
   if (type === 'Day') {
-    if (comparison === 0) return 'Today';
+    if (comparison === 0) return translations.today;
     if (comparison < 0 && movePeriod(periodStart, type, 1).getTime() === currentStart.getTime()) {
-      return 'Yesterday';
+      return translations.yesterday;
     }
-    return formatPeriodLabel(anchor, type, true);
+    return formatPeriodLabel(anchor, type, true, locale, translations);
   }
 
   if (type === 'Week' || type === 'Month' || type === 'Year') {
-    if (comparison === 0) return `This ${type.toLowerCase()}`;
+    const period = {
+      Week: translations.week,
+      Month: translations.month,
+      Year: translations.year,
+    }[type];
+    if (comparison === 0) return translations.thisPeriod.replace('{period}', period);
     if (comparison < 0 && movePeriod(periodStart, type, 1).getTime() === currentStart.getTime()) {
-      return `Last ${type.toLowerCase()}`;
+      return translations.lastPeriod.replace('{period}', period);
     }
   }
 
   if (type === 'Quarter') {
     const quarter = Math.floor(periodStart.getMonth() / 3);
-    return `${['I', 'II', 'III', 'IV'][quarter]}-${periodStart.getFullYear()}`;
+    return translations.navigationQuarter
+      .replace('{quarter}', ['I', 'II', 'III', 'IV'][quarter])
+      .replace('{year}', String(periodStart.getFullYear()));
   }
 
-  return formatPeriodLabel(anchor, type, short);
+  return formatPeriodLabel(anchor, type, short, locale, translations);
 }

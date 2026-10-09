@@ -19,6 +19,13 @@
   padding: 48px clamp(34px, 7vw, 90px);
 }
 
+.auth-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .brand {
   display: flex;
   align-items: center;

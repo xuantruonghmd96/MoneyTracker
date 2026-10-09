@@ -1,5 +1,5 @@
     <section class="transactions-page">
-      <section class="wallet-overview" aria-label="Wallet and period filters">
+      <section class="wallet-overview" [attr.aria-label]="language.t('transactions.walletFilters')">
         <div class="toolbar-row">
           <div></div>
 
@@ -16,14 +16,14 @@
               <span class="chevron" aria-hidden="true">⌄</span>
             </button>
             @if (walletMenuOpen()) {
-              <div class="wallet-menu" role="listbox" aria-label="Select a wallet">
+              <div class="wallet-menu" role="listbox" [attr.aria-label]="language.t('transactions.selectWallet')">
                 <button
                   type="button"
                   role="option"
                   [attr.aria-selected]="selectedWalletId() === null"
                   (click)="selectWallet(null)"
                 >
-                  <span>All wallets</span>
+                  <span>{{ language.t('transactions.allWallets') }}</span>
                   @if (selectedWalletId() === null) {
                     <span class="checkmark" aria-hidden="true">✓</span>
                   }
@@ -49,7 +49,7 @@
             <button
               class="icon-button"
               type="button"
-              [attr.aria-label]="searchOpen() ? 'Close transaction search' : 'Search transactions'"
+              [attr.aria-label]="language.t(searchOpen() ? 'transactions.closeSearch' : 'transactions.search')"
               [attr.aria-expanded]="searchOpen()"
               (click)="toggleSearch()"
             >
@@ -59,7 +59,7 @@
               <button
                 class="icon-button"
                 type="button"
-                aria-label="Period options"
+                [attr.aria-label]="language.t('transactions.periodOptions')"
                 aria-haspopup="menu"
                 [attr.aria-expanded]="menuOpen() || periodTypesOpen()"
                 (click)="toggleMenu()"
@@ -69,13 +69,13 @@
               @if (menuOpen()) {
                 <div class="overflow-menu" role="menu">
                   <button type="button" role="menuitem" (click)="openPeriodTypes()">
-                    <span>Select period</span>
-                    <span class="menu-value">{{ periodType() }} <span aria-hidden="true">›</span></span>
+                    <span>{{ language.t('transactions.selectPeriod') }}</span>
+                    <span class="menu-value">{{ periodTypeLabel(periodType()) }} <span aria-hidden="true">›</span></span>
                   </button>
                 </div>
               } @else if (periodTypesOpen()) {
-                <div class="overflow-menu period-types-menu" role="menu" aria-label="Select period type">
-                  <p>Period type</p>
+                <div class="overflow-menu period-types-menu" role="menu" [attr.aria-label]="language.t('transactions.periodType')">
+                  <p>{{ language.t('transactions.periodType') }}</p>
                   @for (type of periodTypes; track type) {
                     <button
                       type="button"
@@ -84,7 +84,7 @@
                       [class.selected-type]="periodType() === type"
                       (click)="selectPeriodType(type)"
                     >
-                      <span>{{ type }}</span>
+                      <span>{{ periodTypeLabel(type) }}</span>
                       @if (periodType() === type) {
                         <span class="checkmark" aria-hidden="true">✓</span>
                       }
@@ -103,17 +103,17 @@
               type="search"
               [value]="searchQuery()"
               (input)="setSearchQuery($event)"
-              placeholder="Search notes, categories, amounts…"
-              aria-label="Search transactions"
+              [placeholder]="language.t('transactions.searchPlaceholder')"
+              [attr.aria-label]="language.t('transactions.search')"
             />
             @if (searchQuery()) {
-              <button type="button" aria-label="Clear search" (click)="searchQuery.set('')">×</button>
+              <button type="button" [attr.aria-label]="language.t('transactions.clearSearch')" (click)="searchQuery.set('')">×</button>
             }
           </label>
         }
 
         <div class="balance-row">
-          <span class="balance-label">Opening balance <span aria-hidden="true">ⓘ</span></span>
+          <span class="balance-label">{{ language.t('transactions.openingBalance') }} <span aria-hidden="true">ⓘ</span></span>
           @if (loading()) {
             <span class="skeleton balance-skeleton"></span>
           } @else {
@@ -125,7 +125,7 @@
           <nav
             #periodStrip
             class="period-strip"
-            aria-label="Choose period"
+            [attr.aria-label]="language.t('transactions.choosePeriod')"
             tabindex="0"
             (scroll)="onPeriodStripScroll()"
           >
@@ -154,7 +154,7 @@
             <button
               class="jump-current-period"
               type="button"
-              aria-label="Jump to current period"
+              [attr.aria-label]="language.t('transactions.jumpCurrent')"
               (click)="goToCurrentPeriod()"
             >
               <span aria-hidden="true">»</span>
@@ -165,7 +165,7 @@
 
       <div
         class="period-content"
-        aria-label="Period summary and transactions. Swipe left or right to change period."
+        [attr.aria-label]="language.t('transactions.summaryAndList')"
         (pointerdown)="onSwipeStart($event)"
         (pointerup)="onSwipeEnd($event)"
         (pointercancel)="resetSwipe()"
@@ -173,10 +173,10 @@
         <a
           class="period-summary"
           routerLink="/report"
-          aria-label="View report for this period"
+          [attr.aria-label]="language.t('transactions.viewReport')"
         >
           <div class="summary-amount">
-            <span><i class="income-dot"></i> Inflow</span>
+            <span><i class="income-dot"></i> {{ language.t('transactions.inflow') }}</span>
             @if (loading()) {
               <span class="skeleton summary-skeleton"></span>
             } @else {
@@ -184,7 +184,7 @@
             }
           </div>
           <div class="summary-amount">
-            <span><i class="expense-dot"></i> Outflow</span>
+            <span><i class="expense-dot"></i> {{ language.t('transactions.outflow') }}</span>
             @if (loading()) {
               <span class="skeleton summary-skeleton"></span>
             } @else {
@@ -192,7 +192,7 @@
             }
           </div>
           <div class="summary-amount">
-            <span>Net</span>
+            <span>{{ language.t('transactions.net') }}</span>
             @if (loading()) {
               <span class="skeleton summary-skeleton"></span>
             } @else {
@@ -202,7 +202,7 @@
             }
           </div>
           <span class="report-button">
-            View report for this period
+            {{ language.t('transactions.viewReport') }}
           </span>
         </a>
 
@@ -211,7 +211,7 @@
             @if (!loading() && filteredTransactions().length) {
               <span class="transaction-count">
                 {{ filteredTransactions().length }}
-                {{ filteredTransactions().length === 1 ? 'transaction' : 'transactions' }}
+                {{ language.t(filteredTransactions().length === 1 ? 'transactions.transaction' : 'transactions.transactions') }}
               </span>
             }
           </div>
@@ -219,12 +219,12 @@
           @if (errorMessage()) {
             <div class="state-card error-state" role="alert">
               <span class="state-icon" aria-hidden="true">!</span>
-              <h3>Transactions couldn’t load</h3>
+              <h3>{{ language.t('transactions.loadFailureTitle') }}</h3>
               <p>{{ errorMessage() }}</p>
-              <button type="button" (click)="reload()">Try again</button>
+              <button type="button" (click)="reload()">{{ language.t('transactions.tryAgain') }}</button>
             </div>
           } @else if (loading()) {
-            <div class="loading-list" aria-label="Loading transactions">
+            <div class="loading-list" [attr.aria-label]="language.t('transactions.loading')">
               @for (item of [1, 2, 3]; track item) {
                 <div class="loading-day">
                   <span class="skeleton date-skeleton"></span>
@@ -235,16 +235,16 @@
           } @else if (!filteredTransactions().length) {
             <div class="state-card empty-state">
               <span class="state-icon" aria-hidden="true">{{ searchQuery() ? '⌕' : '✳' }}</span>
-              <h3>{{ searchQuery() ? 'No matching transactions' : 'Nothing recorded this period' }}</h3>
+              <h3>{{ language.t(searchQuery() ? 'transactions.noMatches' : 'transactions.nothingThisPeriod') }}</h3>
               <p>
                 {{
                   searchQuery()
-                    ? 'Try a different search or clear the filter.'
-                    : 'Your transactions for this period will appear here.'
+                    ? language.t('transactions.tryDifferentSearch')
+                    : language.t('transactions.periodWillAppear')
                 }}
               </p>
               @if (searchQuery()) {
-                <button type="button" (click)="searchQuery.set('')">Clear search</button>
+                <button type="button" (click)="searchQuery.set('')">{{ language.t('transactions.clearSearch') }}</button>
               }
             </div>
           } @else {
@@ -285,7 +285,7 @@
                           [class.debt-amount]="transactionType(transaction.categoryId) === 'Debt'"
                         >
                           {{ transactionAmount(transaction) > 0 ? '+' : '−'
-                          }}{{ formatMoney(transaction.amount) }}
+                          }}{{ formatWalletMoney(transaction.amount, walletCurrency(transaction.walletId)) }}
                         </span>
                       </article>
                     }

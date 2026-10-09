@@ -4,6 +4,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { Category, Transaction, Wallet } from '../../core/api.models';
+import { LanguageService } from '../../core/language.service';
 import { TransactionsComponent } from './transactions.component';
 import { getPeriodBounds } from './period';
 
@@ -14,6 +15,7 @@ describe('TransactionsComponent', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
+    localStorage.removeItem('money-tracker.language');
     TestBed.configureTestingModule({
       imports: [TransactionsComponent],
       providers: [
@@ -128,6 +130,11 @@ describe('TransactionsComponent', () => {
     );
     expect(fixture.nativeElement.querySelector('.summary-amount .income-value').textContent).toContain('1,200');
     expect(fixture.nativeElement.querySelector('.summary-amount .expense-value').textContent).toContain('370');
+    expect(
+      [...fixture.nativeElement.querySelectorAll('.transaction-row')].some((row) =>
+        row.textContent.includes('$50.00'),
+      ),
+    ).toBe(true);
 
     fixture.componentInstance.selectWallet('cash');
     fixture.detectChanges();
@@ -135,7 +142,16 @@ describe('TransactionsComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('.transaction-row').length).toBe(2);
     expect(fixture.nativeElement.querySelector('.summary-amount .income-value').textContent).toContain('1,200');
     expect(fixture.nativeElement.querySelector('.summary-amount .expense-value').textContent).toContain('320');
-    expect(fixture.nativeElement.querySelector('.balance-row strong').textContent).toContain('1.000');
+    expect(fixture.nativeElement.querySelector('.balance-row strong').textContent).toContain('1,000');
+
+    TestBed.inject(LanguageService).setLanguage('vi');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.period-strip button.selected span').textContent).toBe(
+      'tháng này',
+    );
+    expect(fixture.nativeElement.querySelector('.wallet-button').textContent).toContain('Everyday');
+    expect(fixture.nativeElement.querySelector('.balance-label').textContent).toContain('Số dư đầu kỳ');
   });
 
   it('keeps the selected date when changing period type and moves on horizontal swipes', () => {
