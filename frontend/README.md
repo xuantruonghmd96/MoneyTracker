@@ -16,6 +16,30 @@ npm start
 Open `http://localhost:4200`. The Angular development server forwards `/api`
 requests to the API through `proxy.conf.json`.
 
+## Deploy to Vercel
+
+The `vercel.json` rewrites proxy `/api/*` requests to the deployed Render API
+and send other paths to `index.html` for Angular routing. API calls in the
+Angular app should therefore remain relative (for example, `/api/transactions`).
+
+1. Push the repository, including `frontend/vercel.json`, to GitHub.
+2. In Vercel, choose **Add New → Project**, import the GitHub repository, and
+   set **Root Directory** to `frontend`.
+3. Use these project settings:
+   - **Framework Preset:** Angular
+   - **Build Command:** `npm run build`
+   - **Install Command:** `npm ci`
+   - **Output Directory:** `dist/frontend/browser`
+4. Click **Deploy**. Once complete, open the assigned `*.vercel.app` URL and
+   test registration/login and an authenticated API-backed screen.
+5. For later updates, push to the connected GitHub branch; Vercel will rebuild
+   and deploy automatically.
+
+The browser calls the Vercel origin and Vercel forwards API traffic to Render,
+so the frontend does not need a separately configured API base URL or a browser
+CORS exception for this setup. The API must still be awake and reachable on
+Render; the free service may take a while to respond after being idle.
+
 ## Project structure
 
 - `src/app/core` — authentication, JWT interceptor, route guards, API service,
