@@ -27,4 +27,4 @@ COPY --from=build /app/publish .
 EXPOSE 10000
 
 # 4. Modify ENTRYPOINT to execute the migration bundle before running the API
-ENTRYPOINT ["sh", "-c", "./migrate --connection \"$ConnectionStrings__DefaultConnection\" && ASPNETCORE_URLS=http://0.0.0.0:${PORT:-10000} exec dotnet MoneyTracker.Api.dll"]
+ENTRYPOINT ["sh", "-c", "./migrate --connection \"$ConnectionStrings__Postgres\" && ASPNETCORE_URLS=http://0.0.0.0:${PORT:-10000} exec dotnet MoneyTracker.Api.dll"]
