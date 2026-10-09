@@ -49,12 +49,12 @@ export const routes: Routes = [
             (module) => module.CategoriesComponent,
           ),
       },
-      ...['report', 'add-transaction'].map((path) => ({
-        path,
+      {
+        path: 'report',
         loadComponent: () =>
           import('./shared/coming-soon.component').then((module) => module.ComingSoonComponent),
-        data: { feature: path },
-      })),
+        data: { feature: 'report' },
+      },
     ],
   },
   { path: '**', redirectTo: '' },

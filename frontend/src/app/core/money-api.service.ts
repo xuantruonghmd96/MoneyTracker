@@ -4,10 +4,13 @@ import { Observable } from 'rxjs';
 import {
   Category,
   CreateCategoryRequest,
+  CreateTransactionRequest,
   CreateWalletRequest,
   MonthlyReport,
+  Participant,
   Transaction,
   UpdateCategoryRequest,
+  UpdateTransactionRequest,
   UpdateWalletRequest,
   Wallet,
 } from './api.models';
@@ -24,6 +27,22 @@ export class MoneyApiService {
   getTransactions(from: Date, to: Date): Observable<Transaction[]> {
     const params = new HttpParams().set('from', from.toISOString()).set('to', to.toISOString());
     return this.http.get<Transaction[]>('/api/transactions', { params });
+  }
+
+  createTransaction(request: CreateTransactionRequest): Observable<Transaction> {
+    return this.http.post<Transaction>('/api/transactions', request);
+  }
+
+  updateTransaction(id: string, request: UpdateTransactionRequest): Observable<Transaction> {
+    return this.http.put<Transaction>(`/api/transactions/${id}`, request);
+  }
+
+  deleteTransaction(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/transactions/${id}`);
+  }
+
+  getParticipants(): Observable<Participant[]> {
+    return this.http.get<Participant[]>('/api/participants');
   }
 
   getCategories(): Observable<Category[]> {

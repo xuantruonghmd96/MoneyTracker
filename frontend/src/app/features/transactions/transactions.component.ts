@@ -5,6 +5,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  effect,
   HostListener,
   Injector,
   OnInit,
@@ -14,9 +15,18 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { catchError, forkJoin, of, Subject, switchMap, tap } from 'rxjs';
-import { Category, CategoryType, Transaction, Wallet } from '../../core/api.models';
+import { catchError, finalize, forkJoin, map, of, Subject, switchMap, tap } from 'rxjs';
+import {
+  Category,
+  CategoryType,
+  CreateTransactionRequest,
+  Participant,
+  Transaction,
+  UpdateTransactionRequest,
+  Wallet,
+} from '../../core/api.models';
 import { LanguageService, TranslationKey } from '../../core/language.service';
 import { MoneyApiService } from '../../core/money-api.service';
 import { TransactionsViewState } from './transactions-view-state.service';
@@ -63,7 +73,7 @@ const FUTURE_RANGE_END = new Date(Date.UTC(9999, 11, 31, 23, 59, 59, 999));
 
 @Component({
   selector: 'app-transactions',
-  imports: [RouterLink],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './transactions.component.html',
   styleUrl: './transactions.scss',
 })
@@ -92,7 +102,52 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
   readonly transactions = signal<Transaction[]>([]);
   readonly categories = signal<Category[]>([]);
   readonly wallets = signal<Wallet[]>([]);
+  readonly participants = signal<Participant[]>([]);
   readonly loading = signal(true);
+  readonly categoryWalletAssignments = signal<Record<string, string[]>>({});
+  readonly categoryAssignmentsLoading = signal(false);
+  readonly categoryAssignmentsError = signal(false);
+  private categoryAssignmentsLoaded = false;
+  readonly formWalletId = signal('');
+  readonly selectableCategories = computed(() => {
+    if (this.formMode() !== 'create') return this.categories();
+    const walletId = this.formWalletId();
+    if (!walletId) return [];
+    const assignments = this.categoryWalletAssignments();
+    return this.categories().filter(
+      (category) => assignments[category.id]?.includes(walletId) ?? false,
+    );
+  });
+  private readonly createRequestEffect = effect(() => {
+    if (!this.viewState.createTransactionRequested() || this.loading()) return;
+    if (this.viewState.consumeCreateTransactionRequest()) this.openCreate();
+  });
+  readonly formMode = signal<'create' | 'edit' | null>(null);
+  readonly editingTransaction = signal<Transaction | null>(null);
+  readonly saving = signal(false);
+  readonly participantsLoading = signal(false);
+  readonly participantsError = signal<TranslationKey | null>(null);
+  readonly saveError = signal<TranslationKey | null>(null);
+  readonly confirmDeleteId = signal<string | null>(null);
+  readonly deletingId = signal<string | null>(null);
+  readonly deleteError = signal<TranslationKey | null>(null);
+  readonly form = new FormGroup({
+    amount: new FormControl(0, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(0.01)],
+    }),
+    occurredAt: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    walletId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    categoryId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    participantId: new FormControl<string | null>(null),
+    note: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2048)] }),
+  });
+  private readonly walletFormSubscription = this.form.controls.walletId.valueChanges
+    .pipe(takeUntilDestroyed(this.destroyRef))
+    .subscribe((walletId) => {
+      this.formWalletId.set(walletId);
+      this.syncCreateCategory();
+    });
   private readonly errorKey = signal<TranslationKey | null>(null);
   readonly errorMessage = computed(() => {
     const key = this.errorKey();
@@ -404,13 +459,13 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
   @HostListener('document:click', ['$event'])
   closeToolbarControlsOnOutsideClick(event: MouseEvent): void {
     const target = event.target;
-    if (
-      target instanceof Element &&
-      target.closest('.toolbar-row, .search-field')
-    ) {
-      return;
+    if (!(target instanceof Element)) return;
+
+    if (!target.closest('.toolbar-row, .search-field')) {
+      this.closeToolbarControls();
     }
-    this.closeToolbarControls();
+
+    if (this.formMode() && !target.closest('.transaction-form')) this.closeForm();
   }
 
   isCurrentPeriod(date: Date): boolean {
@@ -456,6 +511,212 @@ export class TransactionsComponent implements OnInit, AfterViewInit {
 
   reload(): void {
     this.periodRequests.next(this.getSelectedRange());
+  }
+
+  openCreate(): void {
+    if (this.saving()) return;
+    this.formMode.set('create');
+    this.editingTransaction.set(null);
+    this.saveError.set(null);
+    this.participantsError.set(null);
+    this.loadParticipants();
+    this.loadCategoryWalletAssignments();
+    const occurredAt = new Date();
+    this.form.reset({
+      amount: 0,
+      occurredAt: this.toLocalDateTimeInput(occurredAt),
+      walletId: this.selectedWalletId() ?? this.wallets()[0]?.id ?? '',
+      categoryId: this.categories()[0]?.id ?? '',
+      participantId: null,
+      note: '',
+    });
+    this.formWalletId.set(this.form.controls.walletId.value);
+    this.syncCreateCategory();
+  }
+
+  openEdit(transaction: Transaction): void {
+    if (this.saving()) return;
+    this.formMode.set('edit');
+    this.editingTransaction.set(transaction);
+    this.saveError.set(null);
+    this.participantsError.set(null);
+    this.loadParticipants();
+    this.form.reset({
+      amount: transaction.amount,
+      occurredAt: this.toLocalDateTimeInput(new Date(transaction.occurredAt)),
+      walletId: transaction.walletId,
+      categoryId: transaction.categoryId,
+      participantId: transaction.participantId,
+      note: transaction.note ?? '',
+    });
+  }
+
+  closeForm(): void {
+    if (this.saving()) return;
+    this.formMode.set(null);
+    this.editingTransaction.set(null);
+    this.saveError.set(null);
+  }
+
+  saveTransaction(): void {
+    if (
+      this.form.invalid ||
+      this.saving() ||
+      this.participantsLoading() ||
+      this.categoryAssignmentsLoading() ||
+      this.categoryAssignmentsError()
+    ) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    const { amount, occurredAt, walletId, categoryId, participantId, note } =
+      this.form.getRawValue();
+    const request = {
+      amount,
+      occurredAt: new Date(occurredAt).toISOString(),
+      walletId,
+      categoryId,
+      participantId,
+      note: note.trim() || null,
+    };
+    const transaction = this.editingTransaction();
+    this.saving.set(true);
+    this.saveError.set(null);
+    const request$ = transaction
+      ? this.api.updateTransaction(transaction.id, request satisfies UpdateTransactionRequest)
+      : this.api.createTransaction({
+          id: crypto.randomUUID(),
+          ...request,
+        } satisfies CreateTransactionRequest);
+
+    request$
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.saving.set(false)),
+      )
+      .subscribe({
+        next: () => {
+          this.formMode.set(null);
+          this.editingTransaction.set(null);
+          this.reload();
+        },
+        error: () => this.saveError.set('transactions.errorSave'),
+      });
+  }
+
+  requestDelete(transaction: Transaction): void {
+    this.confirmDeleteId.set(transaction.id);
+    this.deleteError.set(null);
+  }
+
+  cancelDelete(): void {
+    this.confirmDeleteId.set(null);
+    this.deleteError.set(null);
+  }
+
+  deleteTransaction(transaction: Transaction): void {
+    if (this.deletingId()) return;
+    this.deletingId.set(transaction.id);
+    this.deleteError.set(null);
+    this.api
+      .deleteTransaction(transaction.id)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.deletingId.set(null)),
+      )
+      .subscribe({
+        next: () => {
+          this.confirmDeleteId.set(null);
+          this.reload();
+        },
+        error: () => this.deleteError.set('transactions.errorDelete'),
+      });
+  }
+
+  private toLocalDateTimeInput(date: Date): string {
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 16);
+  }
+
+  private loadParticipants(): void {
+    if (this.participants().length || this.participantsLoading()) return;
+    this.participantsLoading.set(true);
+    this.api
+      .getParticipants()
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.participantsLoading.set(false)),
+      )
+      .subscribe({
+        next: (participants) => this.participants.set(participants),
+        error: () => this.participantsError.set('transactions.errorParticipants'),
+      });
+  }
+
+  private loadCategoryWalletAssignments(): void {
+    if (this.categoryAssignmentsLoaded || this.categoryAssignmentsLoading()) return;
+    const assignedCategories = this.categories().filter((category) => !category.appliesToAllWallets);
+    if (!assignedCategories.length) {
+      this.categoryWalletAssignments.set(
+        Object.fromEntries(this.categories().map((category) => [category.id, this.wallets().map(({ id }) => id)])),
+      );
+      this.categoryAssignmentsLoaded = true;
+      return;
+    }
+
+    this.categoryAssignmentsLoading.set(true);
+    this.categoryAssignmentsError.set(false);
+    forkJoin(
+      assignedCategories.map((category) =>
+        this.api
+          .getAssignedWallets(category.id)
+          .pipe(map((walletIds) => [category.id, walletIds] as const)),
+      ),
+    )
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.categoryAssignmentsLoading.set(false)),
+      )
+      .subscribe({
+        next: (assignments) => {
+          this.categoryWalletAssignments.set({
+            ...Object.fromEntries(
+              this.categories()
+                .filter((category) => category.appliesToAllWallets)
+                .map((category) => [category.id, this.wallets().map(({ id }) => id)]),
+            ),
+            ...Object.fromEntries(assignments),
+          });
+          this.categoryAssignmentsLoaded = true;
+          this.syncCreateCategory();
+        },
+        error: () => this.categoryAssignmentsError.set(true),
+      });
+  }
+
+  retryCategoryAssignments(): void {
+    if (this.categoryAssignmentsLoading()) return;
+    this.categoryAssignmentsLoaded = false;
+    this.categoryWalletAssignments.set({});
+    this.loadCategoryWalletAssignments();
+  }
+
+  private syncCreateCategory(): void {
+    if (this.formMode() !== 'create') return;
+    const selectableCategories = this.selectableCategories();
+    const selectedCategoryId = this.form.controls.categoryId.value;
+    if (selectableCategories.some((category) => category.id === selectedCategoryId)) return;
+    this.form.controls.categoryId.setValue(selectableCategories[0]?.id ?? '');
+  }
+
+  shiftOccurredAtDay(days: number): void {
+    const value = this.form.controls.occurredAt.value;
+    if (!value) return;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return;
+    date.setDate(date.getDate() + days);
+    this.form.controls.occurredAt.setValue(this.toLocalDateTimeInput(date));
   }
 
   categoryName(id: string): string {

@@ -470,6 +470,158 @@
   padding: 5px 2px 0;
 }
 
+.transaction-form-actions button,
+.transaction-delete-confirmation button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(166, 217, 154, 0.2);
+  border-radius: 8px;
+  background: rgba(145, 190, 122, 0.1);
+  color: #c5e2b9;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.transaction-form-actions button:hover,
+.transaction-delete-confirmation button:hover {
+  background: rgba(145, 190, 122, 0.18);
+}
+
+.transaction-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  overflow-y: auto;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(4px);
+}
+
+.transaction-form {
+  display: grid;
+  width: min(100%, 560px);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  gap: 13px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+}
+
+.transaction-form h2 {
+  margin: 0;
+  color: #e8ebe4;
+  font-size: 14px;
+}
+
+.transaction-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.transaction-field {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: #b8c0b4;
+  font-size: 10px;
+}
+
+.transaction-field input,
+.transaction-field select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid rgba(239, 244, 230, 0.12);
+  border-radius: 7px;
+  background: #131713;
+  color: var(--text);
+  font: inherit;
+  color-scheme: dark;
+}
+
+.date-time-control {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  gap: 5px;
+}
+
+.date-time-control input {
+  min-width: 0;
+}
+
+.date-time-control button {
+  min-width: 34px;
+  border: 1px solid rgba(239, 244, 230, 0.12);
+  border-radius: 7px;
+  background: #202621;
+  color: #c5e2b9;
+  cursor: pointer;
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.date-time-control button:hover {
+  background: rgba(145, 190, 122, 0.18);
+}
+
+.transaction-field small,
+.mutation-error {
+  margin: 0;
+  color: #f0a19b;
+  font-size: 10px;
+}
+
+.category-assignment-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #f0a19b;
+  font-size: 10px;
+}
+
+.category-assignment-error button {
+  border: 0;
+  background: transparent;
+  color: #c5e2b9;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+
+.transaction-note-field {
+  grid-column: 1 / -1;
+}
+
+.transaction-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.transaction-form-actions .secondary-button,
+.transaction-delete-confirmation button:first-of-type {
+  border-color: rgba(239, 244, 230, 0.12);
+  background: transparent;
+  color: #b8c0b4;
+}
+
+.transaction-form-actions button:disabled,
+.transaction-delete-confirmation button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 .activity-heading h2 {
   margin: 0;
   color: #e8ebe4;
@@ -540,11 +692,49 @@
   padding: 0 15px 5px;
 }
 
+.transaction-item + .transaction-item {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
 .transaction-row {
   display: flex;
   min-height: 62px;
   align-items: center;
   gap: 10px;
+}
+
+.transaction-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.transaction-actions button {
+  padding: 5px;
+  border: 0;
+  background: transparent;
+  color: #9eaa98;
+  cursor: pointer;
+  font: inherit;
+  font-size: 9px;
+}
+
+.transaction-actions button:hover {
+  color: var(--green);
+}
+
+.transaction-delete-confirmation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 0 0 10px 45px;
+  color: #d5dacf;
+  font-size: 10px;
+}
+
+.transaction-delete-confirmation > span:first-child {
+  flex: 1 1 180px;
 }
 
 .category-icon {
@@ -813,6 +1003,14 @@
 
   .activity-heading h2 {
     font-size: 13px;
+  }
+
+  .transaction-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .transaction-note-field {
+    grid-column: auto;
   }
 
   .day-heading {

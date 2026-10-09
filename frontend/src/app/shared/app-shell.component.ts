@@ -2,6 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { LanguageService } from '../core/language.service';
+import { TransactionsViewState } from '../features/transactions/transactions-view-state.service';
 import { LanguageSelectorComponent } from './language-selector.component';
 
 @Component({
@@ -56,9 +57,14 @@ import { LanguageSelectorComponent } from './language-selector.component';
         <a routerLink="/categories" routerLinkActive="active">
           <span aria-hidden="true">◈</span><span>{{ language.t('nav.categories') }}</span>
         </a>
-        <a class="add-button" routerLink="/add-transaction" [attr.aria-label]="language.t('coming.transactionTitle')">
+        <button
+          class="add-button"
+          type="button"
+          [attr.aria-label]="language.t('transactions.add')"
+          (click)="addTransaction()"
+        >
           <span aria-hidden="true">+</span>
-        </a>
+        </button>
         <a routerLink="/wallets" routerLinkActive="active">
           <span aria-hidden="true">▰</span><span>{{ language.t('nav.wallets') }}</span>
         </a>
@@ -73,6 +79,7 @@ import { LanguageSelectorComponent } from './language-selector.component';
 export class AppShellComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly transactionsViewState = inject(TransactionsViewState);
   readonly language = inject(LanguageService);
   readonly displayName = computed(() => this.auth.user()?.displayName ?? this.language.t('nav.myAccount'));
   readonly initials = computed(() => this.displayName().trim().charAt(0).toUpperCase() || 'M');
@@ -82,5 +89,10 @@ export class AppShellComponent {
       next: () => void this.router.navigateByUrl('/login'),
       error: () => void this.router.navigateByUrl('/login'),
     });
+  }
+
+  addTransaction(): void {
+    this.transactionsViewState.requestCreateTransaction();
+    void this.router.navigateByUrl('/');
   }
 }

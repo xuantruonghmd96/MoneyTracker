@@ -92,6 +92,25 @@ export interface Transaction {
   note: string | null;
 }
 
+export interface Participant {
+  id: string;
+  name: string;
+  note: string | null;
+  isDefault: boolean;
+}
+
+export interface CreateTransactionRequest {
+  id?: string;
+  amount: number;
+  occurredAt: string;
+  walletId: string;
+  categoryId: string;
+  participantId: string | null;
+  note: string | null;
+}
+
+export type UpdateTransactionRequest = Omit<CreateTransactionRequest, 'id'>;
+
 export interface MonthlyReport {
   year: number;
   month: number;
