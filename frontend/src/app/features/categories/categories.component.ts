@@ -588,7 +588,8 @@ type CategoryFormMode = 'create' | 'edit' | null;
       border-top: 1px solid rgba(239, 244, 230, 0.06);
     }
     .text-button {
-      padding: 0;
+      min-height: 36px;
+      padding: 0 5px;
       border: 0;
       background: transparent;
       color: #b8c2b3;
@@ -625,6 +626,26 @@ type CategoryFormMode = 'create' | 'edit' | null;
       .page-heading {
         flex-direction: column;
         align-items: flex-start;
+      }
+    }
+    @media (max-width: 600px) {
+      .categories-page {
+        gap: var(--mobile-section-gap);
+      }
+      .category-form,
+      .category-card {
+        padding: var(--mobile-card-padding);
+      }
+      .field input,
+      .field select {
+        min-height: 44px;
+        font-size: 16px;
+      }
+      .primary-button,
+      .secondary-button,
+      .danger-button,
+      .text-button {
+        min-height: 44px;
       }
     }
   `,

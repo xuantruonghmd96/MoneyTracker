@@ -139,11 +139,11 @@ import { LanguageSelectorComponent } from '../../shared/language-selector.compon
     }
     @media (max-width: 600px) {
       .account-page {
-        gap: 14px;
+        gap: var(--mobile-section-gap);
       }
       .profile-card,
       .session-card {
-        padding: 14px;
+        padding: var(--mobile-card-padding);
       }
     }
   `,

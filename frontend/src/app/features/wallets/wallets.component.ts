@@ -239,6 +239,7 @@ type WalletFormMode = 'create' | 'edit' | null;
     }
     .page-heading {
       display: flex;
+      flex-wrap: wrap;
       align-items: flex-end;
       justify-content: space-between;
       gap: 14px;
@@ -560,20 +561,32 @@ type WalletFormMode = 'create' | 'edit' | null;
     }
     @media (max-width: 480px) {
       .wallets-page {
-        gap: 14px;
+        gap: var(--mobile-section-gap);
       }
       .page-heading {
         align-items: flex-start;
       }
       .page-heading .primary-button {
         flex: 0 0 auto;
+        margin-left: auto;
       }
       .form-grid {
         grid-template-columns: minmax(0, 1fr);
       }
       .wallet-form,
       .wallet-card {
-        padding: 14px;
+        padding: var(--mobile-card-padding);
+      }
+      .field input,
+      .field select {
+        min-height: 44px;
+        font-size: 16px;
+      }
+      .primary-button,
+      .secondary-button,
+      .danger-button,
+      .text-button {
+        min-height: 44px;
       }
     }
   `,

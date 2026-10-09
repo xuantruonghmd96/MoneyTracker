@@ -1,10 +1,12 @@
 :host {
   display: block;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .app-shell {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .sidebar {
@@ -183,6 +185,7 @@
 
 .main-area {
   min-height: 100vh;
+  min-height: 100dvh;
   margin-left: 238px;
 }
 
@@ -253,7 +256,10 @@
   }
 
   .page-content {
-    padding: 20px 14px 25px;
+    padding:
+      calc(20px + env(safe-area-inset-top))
+      var(--mobile-page-gutter)
+      25px;
   }
 
   .bottom-nav {

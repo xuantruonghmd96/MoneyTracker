@@ -20,6 +20,9 @@
   --green-strong: #78bf75;
   --coral: #e98c83;
   --blue: #8ab9d4;
+  --mobile-page-gutter: clamp(8px, 3.4vw, 14px);
+  --mobile-card-padding: clamp(10px, 3.4vw, 14px);
+  --mobile-section-gap: clamp(10px, 3.4vw, 14px);
 }
 
 * {
@@ -35,6 +38,7 @@ html {
 body {
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
 }
 

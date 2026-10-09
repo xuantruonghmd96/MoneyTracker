@@ -72,6 +72,13 @@
   font-weight: 600;
 }
 
+.wallet-button > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .wallet-button-icon {
   color: #b1d59b;
 }
@@ -814,7 +821,7 @@
 
 @media (max-width: 600px) {
   .transactions-page {
-    gap: 11px;
+    gap: var(--mobile-section-gap);
   }
 
   .period-caption {
@@ -822,17 +829,31 @@
   }
 
   .wallet-overview {
-    padding: 11px 12px 0;
+    padding: var(--mobile-card-padding) var(--mobile-card-padding) 0;
+  }
+
+  .toolbar-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: clamp(6px, 2.5vw, 8px);
+  }
+
+  .toolbar-row > :first-child {
+    display: none;
+  }
+
+  .wallet-control {
+    min-width: 0;
   }
 
   .wallet-button {
-    min-width: 132px;
-    height: 35px;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
   }
 
   .icon-button {
-    width: 35px;
-    height: 35px;
+    width: 44px;
+    height: 44px;
   }
 
   .balance-row {
@@ -849,16 +870,16 @@
   }
 
   .period-strip {
-    padding-right: 8px;
-    padding-left: 8px;
+    padding-right: var(--mobile-page-gutter);
+    padding-left: var(--mobile-page-gutter);
   }
 
   .period-strip-wrap {
-    margin: 0 -12px;
+    margin: 0 calc(-1 * var(--mobile-card-padding));
   }
 
   .period-strip button {
-    min-height: 43px;
+    min-height: 44px;
   }
 
   .period-strip-hint {
@@ -875,16 +896,25 @@
   }
 
   .period-summary {
-    gap: 11px 14px;
-    padding: 14px 13px;
+    gap: var(--mobile-section-gap);
+    padding: var(--mobile-card-padding);
+  }
+
+  .summary-amount {
+    min-width: 0;
+    margin: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
   }
 
   .summary-amount strong {
     font-size: 12px;
+    min-width: 0;
+    padding-right: 0;
   }
 
   .report-button {
-    min-height: 37px;
+    min-height: 44px;
   }
 
   .activity-heading {
@@ -902,7 +932,7 @@
 
   .day-heading {
     min-height: 60px;
-    margin: 0 12px;
+    margin: 0 var(--mobile-card-padding);
   }
 
   .day-number {
@@ -910,12 +940,12 @@
   }
 
   .day-transactions {
-    padding: 0 12px 4px;
+    padding: 0 var(--mobile-card-padding) 4px;
   }
 
   .transaction-row {
     min-height: 58px;
-    gap: 9px;
+    gap: clamp(6px, 2.4vw, 9px);
   }
 
   .category-icon {

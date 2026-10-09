@@ -1,11 +1,13 @@
 :host {
   display: block;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .auth-layout {
   display: grid;
   min-height: 100vh;
+  min-height: 100dvh;
   grid-template-columns: minmax(400px, 0.95fr) minmax(390px, 1.05fr);
   background: #111411;
 }
@@ -287,7 +289,11 @@
 
   .auth-card {
     width: min(100%, 510px);
-    padding: 40px 27px;
+    padding:
+      calc(40px + env(safe-area-inset-top))
+      calc(27px + env(safe-area-inset-right))
+      calc(40px + env(safe-area-inset-bottom))
+      calc(27px + env(safe-area-inset-left));
   }
 
   .auth-heading {
@@ -301,11 +307,18 @@
 
 @media (max-width: 420px) {
   .auth-card {
-    padding-right: 23px;
-    padding-left: 23px;
+    padding-right: calc(clamp(16px, 5.56vw, 23px) + env(safe-area-inset-right));
+    padding-left: calc(clamp(16px, 5.56vw, 23px) + env(safe-area-inset-left));
   }
 
   .auth-heading h1 {
     font-size: 35px;
+  }
+}
+
+@media (max-width: 600px) {
+  .auth-card input {
+    min-height: 44px;
+    font-size: 16px;
   }
 }
