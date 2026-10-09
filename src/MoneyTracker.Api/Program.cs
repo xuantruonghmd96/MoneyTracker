@@ -103,11 +103,17 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<ICurrentActorContext, CurrentActorContext>();
 
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
-    .AllowAnyHeader()
-    .AllowAnyMethod()
-    .SetIsOriginAllowed(_ => true)
-    .AllowCredentials()));
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("VercelFrontend", policy =>
+    {
+        // You will replace this with your actual Vercel URL later
+        policy.WithOrigins("https://*.vercel.app") 
+              .SetIsOriginAllowedToAllowWildcardSubdomains()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 var app = builder.Build();
 
@@ -118,7 +124,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
-app.UseCors();
+app.UseCors("VercelFrontend"); 
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
