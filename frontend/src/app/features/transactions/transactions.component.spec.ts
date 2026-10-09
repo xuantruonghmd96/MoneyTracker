@@ -1,10 +1,14 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { Category, Transaction, Wallet } from '../../core/api.models';
 import { TransactionsComponent } from './transactions.component';
 import { getPeriodBounds } from './period';
+
+@Component({ standalone: true, template: '' })
+class ReportRouteStub {}
 
 describe('TransactionsComponent', () => {
   let http: HttpTestingController;
@@ -12,12 +16,35 @@ describe('TransactionsComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [TransactionsComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([{ path: 'report', component: ReportRouteStub }]),
+      ],
     });
     http = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => http.verify());
+
+  it('navigates to the report when any part of the period summary is clicked', async () => {
+    const fixture = TestBed.createComponent(TransactionsComponent);
+    fixture.detectChanges();
+
+    http.expectOne((request) => request.url === '/api/transactions').flush([]);
+    http.expectOne('/api/categories').flush([]);
+    http.expectOne('/api/wallets').flush([]);
+    fixture.detectChanges();
+
+    const summary = fixture.nativeElement.querySelector('.period-summary') as HTMLAnchorElement;
+    expect(summary.getAttribute('href')).toBe('/report');
+    expect(summary.querySelector('a')).toBeNull();
+
+    summary.click();
+    await fixture.whenStable();
+
+    expect(TestBed.inject(Router).url).toBe('/report');
+  });
 
   it('filters by wallet and calculates period totals from the selected wallet', () => {
     const fixture = TestBed.createComponent(TransactionsComponent);

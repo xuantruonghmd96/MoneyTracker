@@ -282,7 +282,8 @@
 
 .jump-current-period {
   position: absolute;
-  transform: translate(0, 80%);
+  right: 5%;
+  bottom: -25%;
   z-index: 2;
   min-height: 30px;
   min-width: 60px;
@@ -389,12 +390,19 @@
 
 .period-summary {
   display: grid;
+  color: inherit;
+  text-decoration: none;
+}
+
+.period-summary:focus-visible {
+  outline: 2px solid #bce1a8;
+  outline-offset: 3px;
 }
 
 .summary-amount {
   display: grid;
+  margin: 5px 50px;
   grid-template-columns: 1fr 1fr;
-  gap: 7px;
 }
 
 .summary-amount > span:first-child {
@@ -762,11 +770,6 @@
 
   .period-strip-wrap {
     margin: 0 -12px;
-  }
-
-  .jump-current-period {
-    right: 7px;
-    bottom: 9px;
   }
 
   .period-strip button {

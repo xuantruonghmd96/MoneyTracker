@@ -170,7 +170,11 @@
         (pointerup)="onSwipeEnd($event)"
         (pointercancel)="resetSwipe()"
       >
-        <section class="period-summary" aria-label="Period totals">
+        <a
+          class="period-summary"
+          routerLink="/report"
+          aria-label="View report for this period"
+        >
           <div class="summary-amount">
             <span><i class="income-dot"></i> Inflow</span>
             @if (loading()) {
@@ -197,10 +201,10 @@
               </strong>
             }
           </div>
-          <a class="report-button" routerLink="/report">
+          <span class="report-button">
             View report for this period
-          </a>
-        </section>
+          </span>
+        </a>
 
         <section class="activity-section" aria-labelledby="activity-title">
           <div class="activity-heading">
