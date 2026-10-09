@@ -30,6 +30,14 @@ export class MoneyApiService {
     return this.http.get<Category[]>('/api/categories');
   }
 
+  getAssignedWallets(categoryId: string): Observable<string[]> {
+    return this.http.get<string[]>(`/api/categories/${categoryId}/wallets`);
+  }
+
+  setAssignedWallets(categoryId: string, walletIds: string[]): Observable<void> {
+    return this.http.put<void>(`/api/categories/${categoryId}/wallets`, walletIds);
+  }
+
   createCategory(request: CreateCategoryRequest): Observable<Category> {
     return this.http.post<Category>('/api/categories', request);
   }

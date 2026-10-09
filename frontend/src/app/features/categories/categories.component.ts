@@ -3,7 +3,7 @@ import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { Category, CategoryType, CreateCategoryRequest, UpdateCategoryRequest } from '../../core/api.models';
+import { Category, CategoryType, CreateCategoryRequest, UpdateCategoryRequest, Wallet } from '../../core/api.models';
 import { LanguageService, TranslationKey } from '../../core/language.service';
 import { MoneyApiService } from '../../core/money-api.service';
 
@@ -74,6 +74,28 @@ type CategoryFormMode = 'create' | 'edit' | null;
               <input type="checkbox" formControlName="appliesToAllWallets" />
               <span>{{ language.t('categories.appliesToAllWallets') }}</span>
             </label>
+
+            @if (!form.controls.appliesToAllWallets.value) {
+              <div class="wallet-assignment">
+                <span>{{ language.t('categories.assignWallets') }}</span>
+                @if (wallets().length === 0) {
+                  <p>{{ language.t('categories.noWalletsAvailable') }}</p>
+                } @else {
+                  <div class="wallet-options">
+                    @for (wallet of wallets(); track wallet.id) {
+                      <label class="wallet-option">
+                        <input
+                          type="checkbox"
+                          [checked]="selectedWalletIds().includes(wallet.id)"
+                          (change)="toggleWalletAssignment(wallet.id, $any($event.target).checked)"
+                        />
+                        <span>{{ wallet.name }}</span>
+                      </label>
+                    }
+                  </div>
+                }
+              </div>
+            }
 
             <label class="field">
               <span>{{ language.t('categories.icon') }}</span>
@@ -329,6 +351,45 @@ type CategoryFormMode = 'create' | 'edit' | null;
       color: var(--text);
       font-size: 11px;
     }
+    .wallet-assignment {
+      display: grid;
+      gap: 8px;
+      grid-column: 1 / -1;
+      padding: 10px 12px;
+      border: 1px solid rgba(239, 244, 230, 0.08);
+      border-radius: 8px;
+      background: rgba(19, 23, 19, 0.38);
+    }
+    .wallet-assignment > span {
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .wallet-assignment p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .wallet-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .wallet-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+      padding: 6px 8px;
+      border: 1px solid rgba(239, 244, 230, 0.08);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 10px;
+    }
+    .wallet-option input {
+      width: 14px;
+      height: 14px;
+      accent-color: #8fc77e;
+    }
     .field .color-input {
       height: 38px;
       padding: 4px;
@@ -519,6 +580,8 @@ export class CategoriesComponent {
   private readonly destroyRef = inject(DestroyRef);
   readonly language = inject(LanguageService);
   readonly categories = signal<Category[]>([]);
+  readonly wallets = signal<Wallet[]>([]);
+  readonly selectedWalletIds = signal<string[]>([]);
   readonly loading = signal(true);
   readonly loadFailed = signal(false);
   readonly saving = signal(false);
@@ -546,10 +609,12 @@ export class CategoriesComponent {
 
   constructor() {
     this.loadCategories();
+    this.loadWallets();
   }
 
   openCreate(): void {
     this.editingCategory = null;
+    this.selectedWalletIds.set([]);
     this.form.reset({
       name: '',
       type: 'Expense',
@@ -566,6 +631,7 @@ export class CategoriesComponent {
   openEdit(category: Category): void {
     if (!this.canManage(category) || this.saving()) return;
     this.editingCategory = category;
+    this.selectedWalletIds.set([]);
     this.form.reset({
       name: category.name,
       type: category.type,
@@ -574,6 +640,15 @@ export class CategoriesComponent {
       icon: category.icon ?? '',
       color: category.color ?? '#8fc77e',
     });
+    if (!category.appliesToAllWallets) {
+      this.api
+        .getAssignedWallets(category.id)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (walletIds) => this.selectedWalletIds.set(walletIds ?? []),
+          error: () => this.selectedWalletIds.set([]),
+        });
+    }
     this.formMode.set('edit');
     this.confirmDeleteId.set(null);
     this.errorKey.set(null);
@@ -582,6 +657,14 @@ export class CategoriesComponent {
   closeForm(): void {
     this.formMode.set(null);
     this.editingCategory = null;
+    this.selectedWalletIds.set([]);
+  }
+
+  toggleWalletAssignment(walletId: string, checked: boolean): void {
+    this.selectedWalletIds.update((walletIds) => {
+      if (checked) return [...new Set([...walletIds, walletId])];
+      return walletIds.filter((id) => id !== walletId);
+    });
   }
 
   save(): void {
@@ -620,8 +703,22 @@ export class CategoriesComponent {
         )
         .subscribe({
           next: (category) => {
-            this.categories.update((items) => items.map((item) => (item.id === category.id ? category : item)));
-            this.closeForm();
+            if (value.appliesToAllWallets) {
+              this.categories.update((items) => items.map((item) => (item.id === category.id ? category : item)));
+              this.closeForm();
+              return;
+            }
+
+            this.api
+              .setAssignedWallets(category.id, [...this.selectedWalletIds()])
+              .pipe(takeUntilDestroyed(this.destroyRef))
+              .subscribe({
+                next: () => {
+                  this.categories.update((items) => items.map((item) => (item.id === category.id ? category : item)));
+                  this.closeForm();
+                },
+                error: (error: unknown) => this.errorKey.set(this.getErrorKey(error, 'save')),
+              });
           },
           error: (error: unknown) => this.errorKey.set(this.getErrorKey(error, 'save')),
         });
@@ -646,8 +743,22 @@ export class CategoriesComponent {
       )
       .subscribe({
         next: (category) => {
-          this.categories.update((items) => [...items, category]);
-          this.closeForm();
+          if (value.appliesToAllWallets) {
+            this.categories.update((items) => [...items, category]);
+            this.closeForm();
+            return;
+          }
+
+          this.api
+            .setAssignedWallets(category.id, [...this.selectedWalletIds()])
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+              next: () => {
+                this.categories.update((items) => [...items, category]);
+                this.closeForm();
+              },
+              error: (error: unknown) => this.errorKey.set(this.getErrorKey(error, 'save')),
+            });
         },
         error: (error: unknown) => this.errorKey.set(this.getErrorKey(error, 'save')),
       });
@@ -698,6 +809,16 @@ export class CategoriesComponent {
           this.loadFailed.set(true);
           this.errorKey.set(this.getErrorKey(error, 'load'));
         },
+      });
+  }
+
+  loadWallets(): void {
+    this.api
+      .getWallets()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (wallets) => this.wallets.set(wallets),
+        error: () => this.wallets.set([]),
       });
   }
 
