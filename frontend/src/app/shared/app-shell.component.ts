@@ -22,8 +22,8 @@ import { LanguageSelectorComponent } from './language-selector.component';
           <a routerLink="/categories" routerLinkActive="active">
             <span aria-hidden="true">◈</span> {{ language.t('nav.categories') }} <small>{{ language.t('nav.soon') }}</small>
           </a>
-          <a routerLink="/report" routerLinkActive="active">
-            <span aria-hidden="true">▥</span> {{ language.t('nav.reports') }} <small>{{ language.t('nav.soon') }}</small>
+          <a routerLink="/wallets" routerLinkActive="active">
+            <span aria-hidden="true">▰</span> {{ language.t('nav.wallets') }}
           </a>
           <a routerLink="/account" routerLinkActive="active">
             <span aria-hidden="true">○</span> {{ language.t('nav.account') }} <small>{{ language.t('nav.soon') }}</small>
@@ -59,8 +59,8 @@ import { LanguageSelectorComponent } from './language-selector.component';
         <a class="add-button" routerLink="/add-transaction" [attr.aria-label]="language.t('coming.transactionTitle')">
           <span aria-hidden="true">+</span>
         </a>
-        <a routerLink="/report" routerLinkActive="active">
-          <span aria-hidden="true">▥</span><span>{{ language.t('nav.reports') }}</span>
+        <a routerLink="/wallets" routerLinkActive="active">
+          <span aria-hidden="true">▰</span><span>{{ language.t('nav.wallets') }}</span>
         </a>
         <a routerLink="/account" routerLinkActive="active">
           <span aria-hidden="true">○</span><span>{{ language.t('nav.account') }}</span>

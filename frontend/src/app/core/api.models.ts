@@ -32,8 +32,28 @@ export interface Wallet {
   id: string;
   name: string;
   type: 'Regular' | 'Credit';
+  creditLimit: number | null;
   initialBalance: number;
   currency: string;
+  icon: string | null;
+  color: string | null;
+}
+
+export interface CreateWalletRequest {
+  id?: string;
+  name: string;
+  type: Wallet['type'];
+  creditLimit: number | null;
+  initialBalance: number;
+  currency: string;
+  icon: string | null;
+  color: string | null;
+}
+
+export interface UpdateWalletRequest {
+  name: string;
+  creditLimit: number | null;
+  initialBalance: number;
   icon: string | null;
   color: string | null;
 }

@@ -1,7 +1,14 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Category, MonthlyReport, Transaction, Wallet } from './api.models';
+import {
+  Category,
+  CreateWalletRequest,
+  MonthlyReport,
+  Transaction,
+  UpdateWalletRequest,
+  Wallet,
+} from './api.models';
 
 @Injectable({ providedIn: 'root' })
 export class MoneyApiService {
@@ -23,5 +30,17 @@ export class MoneyApiService {
 
   getWallets(): Observable<Wallet[]> {
     return this.http.get<Wallet[]>('/api/wallets');
+  }
+
+  createWallet(request: CreateWalletRequest): Observable<Wallet> {
+    return this.http.post<Wallet>('/api/wallets', request);
+  }
+
+  updateWallet(id: string, request: UpdateWalletRequest): Observable<Wallet> {
+    return this.http.put<Wallet>(`/api/wallets/${id}`, request);
+  }
+
+  deleteWallet(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/wallets/${id}`);
   }
 }

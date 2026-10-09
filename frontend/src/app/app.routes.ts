@@ -35,6 +35,13 @@ export const routes: Routes = [
             (module) => module.AccountComponent,
           ),
       },
+      {
+        path: 'wallets',
+        loadComponent: () =>
+          import('./features/wallets/wallets.component').then(
+            (module) => module.WalletsComponent,
+          ),
+      },
       ...['categories', 'report', 'add-transaction'].map((path) => ({
         path,
         loadComponent: () =>
